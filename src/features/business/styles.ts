@@ -1,9 +1,7 @@
 import { StyleSheet } from 'react-native';
+import { palette } from '../../lib/design';
 
-export const colors = {
-  ink: '#241A16', muted: '#766A63', cream: '#F7F2EA', paper: '#FFFDFC', green: '#235C4B',
-  mint: '#DDEBE4', orange: '#D9773E', line: '#E9E0D7',
-};
+export const colors = palette;
 
 export const styles = StyleSheet.create({
   flex: { flex: 1 }, safe: { flex: 1, backgroundColor: colors.cream }, scroll: { padding: 20, paddingBottom: 48 }, center: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center' },

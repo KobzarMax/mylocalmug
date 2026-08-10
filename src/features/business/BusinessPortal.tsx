@@ -7,6 +7,8 @@ import { BusinessDashboard } from './components/BusinessDashboard';
 import { BusinessProfileEditor } from './components/BusinessProfileEditor';
 import { PortalError, PortalLoading } from './components/BusinessUI';
 import { AdminReviewQueue } from './components/AdminReviewQueue';
+import { TeamEntry } from '../team/TeamEntry';
+import { InvitationAcceptanceGate } from '../team/InvitationAcceptanceGate';
 
 export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }: {
   userId: string;
@@ -18,25 +20,25 @@ export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }
   const access = useBusinessAccess(userId);
   const [editingProfile, setEditingProfile] = useState(false);
   const [reviewingApplications, setReviewingApplications] = useState(false);
+  const [managingTeam, setManagingTeam] = useState(false);
 
   if (access.loading) return <PortalLoading />;
   if (access.error) return <PortalError message={access.error} onRetry={access.refresh} onBack={onBack} />;
   if (access.isPlatformAdmin && reviewingApplications) {
     return <AdminReviewQueue onBack={() => setReviewingApplications(false)} />;
   }
+  if (access.workspace && managingTeam) {
+    return <TeamEntry workspace={access.workspace} onBack={() => setManagingTeam(false)} />;
+  }
 
   if (access.workspace) {
     return editingProfile
       ? <BusinessProfileEditor workspace={access.workspace} onBack={() => setEditingProfile(false)} onSaved={access.refresh} />
-      : <BusinessDashboard workspace={access.workspace} displayName={displayName} onBack={onBack} onSignOut={onSignOut} onEditProfile={() => setEditingProfile(true)} onReviewApplications={access.isPlatformAdmin ? () => setReviewingApplications(true) : undefined} />;
+      : <BusinessDashboard workspace={access.workspace} displayName={displayName} onBack={onBack} onSignOut={onSignOut} onEditProfile={() => setEditingProfile(true)} onOpenTeam={() => setManagingTeam(true)} onReviewApplications={access.isPlatformAdmin ? () => setReviewingApplications(true) : undefined} />;
   }
 
   if (access.isPlatformAdmin) {
     return <AdminReviewQueue onBack={onBack} />;
-  }
-
-  if (access.application && ['submitted', 'under_review', 'approved'].includes(access.application.status)) {
-    return <ApplicationStatusScreen application={access.application} onBack={onBack} onRefresh={access.refresh} />;
   }
 
   const initial = access.application ?? {
@@ -45,5 +47,8 @@ export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }
     status: 'draft' as const,
     rejectionReason: null,
   };
-  return <BusinessApplicationForm userId={userId} initial={initial} onBack={onBack} onChanged={access.refresh} />;
+  const applicationScreen = access.application && ['submitted', 'under_review', 'approved'].includes(access.application.status)
+    ? <ApplicationStatusScreen application={access.application} onBack={onBack} onRefresh={access.refresh} />
+    : <BusinessApplicationForm userId={userId} initial={initial} onBack={onBack} onChanged={access.refresh} />;
+  return <InvitationAcceptanceGate email={email} onAccepted={access.refresh}>{applicationScreen}</InvitationAcceptanceGate>;
 }

@@ -63,7 +63,7 @@ The dashboard filters actions using the user's membership permissions and does n
 
 ### Business membership and permissions
 
-Implemented database foundation:
+Implemented locally:
 
 - Customer-follow relationships renamed to `business_followers`.
 - Separate `business_memberships` table for staff access.
@@ -73,8 +73,14 @@ Implemented database foundation:
 - Matching client permission map used for visible actions.
 - Permission-aware policies for profiles, locations, hours, menu, content, rewards, and business media.
 - Existing business owners backfilled into owner memberships.
+- Employee invitations with normalized email, a seven-day expiry, and hashed single-use tokens.
+- Secured invite, accept, revoke, role-change, suspend, restore, and remove database functions.
+- Team and invitation RLS policies plus an immutable team audit trail.
+- Permission-aware Team list, invitation form, one-time code handoff, invite acceptance, and member detail screens.
+- Owner/admin management boundaries; only owners can assign or manage administrators.
+- A transactional owner/admin/manager/viewer/invitee/anonymous SQL policy test script.
 
-Current limitation: employee invitation and team-management UI are not implemented yet.
+Current limitation: the new invitation migrations are ready locally but are not recorded as applied or live-tested. Invitations currently use a manually shared one-time code; email delivery and ownership transfer are not implemented.
 
 ### Code structure
 
@@ -103,6 +109,12 @@ Applied successfully:
 - Supabase migration `001_supabase_security.sql`.
 - Supabase migration `002_business_profiles.sql`.
 
+Ready to apply next, in this order:
+
+- Drizzle migration `0003_employee_invitations.sql`.
+- Supabase migration `003_employee_invitations.sql`.
+- Transactional verification script `supabase/tests/003_employee_invitations_rls.sql`.
+
 The first platform administrator still needs a row in `platform_admins` for the in-app review queue:
 
 ```sql
@@ -116,7 +128,8 @@ on conflict do nothing;
 - Live end-to-end testing with separate applicant, administrator, owner, employee, customer, and anonymous accounts is not yet recorded.
 - The current business portal loads the first active business membership; there is no multi-workspace selector.
 - Full Expo Router protected route groups are not implemented. The current flow uses component state plus permission-filtered actions.
-- Employee invitations, acceptance, role changes, suspension, removal, and ownership transfer are missing.
+- Employee invitations require migration deployment and live multi-account verification.
+- Automated email delivery and ownership transfer are missing.
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
 - Menu, news, events, rewards, team, payments, and analytics dashboard actions remain incomplete.
@@ -142,18 +155,20 @@ Priority: immediate.
 
 Definition of done: the complete application-to-published-profile workflow succeeds on a physical iOS device and all negative RLS checks fail safely.
 
-### 2. Employee invitations and team management
+### 2. Apply and verify employee invitations
 
-Priority: next development slice.
+Priority: immediate after the existing business-flow check.
 
-- Add `business_invitations` with hashed token, email, role, inviter, expiry, and status.
-- Add secured invite, accept, revoke, role-change, suspend, remove, and ownership-transfer functions.
-- Build Team list, invitation form, invite acceptance, and member detail screens.
-- Enforce `team.read` and `team.manage` in UI and RLS.
-- Add audit records for membership and role changes.
-- Test every role against its permission matrix.
+- Apply Drizzle migration `0003`, followed by Supabase migration `003`.
+- Run `supabase/tests/003_employee_invitations_rls.sql`; confirm it completes and rolls back without an assertion error.
+- Test owner invitation creation and secure code handoff on a physical iOS device.
+- Accept with a separate account using the exact invited email.
+- Verify manager read-only team access, admin management boundaries, and viewer/barista/finance denial.
+- Verify revoke, role change, suspend, restore, and remove from separate accounts.
+- Confirm unauthorized direct table mutations and cross-business reads fail.
+- Decide on an email provider and trusted delivery endpoint before replacing manual code sharing.
 
-Definition of done: an owner can invite an employee, the employee can accept, and each role sees and performs only authorized actions.
+Definition of done: the migration test passes and an owner-to-employee invitation lifecycle succeeds on a physical device while every unauthorized role/account check fails safely.
 
 ### 3. Routing and workspace selection
 

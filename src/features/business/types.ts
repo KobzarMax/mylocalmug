@@ -4,6 +4,7 @@ import { ProfileImageMime } from '../../lib/profileValidation';
 export type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn';
 export type MemberRole = 'owner' | 'admin' | 'manager' | 'finance' | 'barista' | 'viewer';
 export type Permission =
+  | 'business.profile.read'
   | 'business.profile.write'
   | 'menu.manage'
   | 'content.manage'
@@ -11,8 +12,12 @@ export type Permission =
   | 'team.read'
   | 'team.manage'
   | 'payments.read'
+  | 'payments.charge'
+  | 'payments.refund'
   | 'payments.connect'
-  | 'analytics.read';
+  | 'loyalty.issue'
+  | 'analytics.read'
+  | 'ownership.transfer';
 
 export type Application = BusinessApplicationInput & {
   id: string;

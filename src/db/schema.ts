@@ -41,6 +41,12 @@ export const businessMembershipStatus = pgEnum('business_membership_status', [
   'suspended',
   'removed',
 ]);
+export const businessInvitationStatus = pgEnum('business_invitation_status', [
+  'pending',
+  'accepted',
+  'revoked',
+  'expired',
+]);
 
 export const profiles = pgTable(
   'profiles',
@@ -174,6 +180,48 @@ export const businessMemberships = pgTable(
     pk: primaryKey({ columns: [table.businessId, table.profileId] }),
   }),
 );
+
+export const businessInvitations = pgTable(
+  'business_invitations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: businessMemberRole('role').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    status: businessInvitationStatus('status').default('pending').notNull(),
+    invitedBy: uuid('invited_by')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'restrict' }),
+    acceptedBy: uuid('accepted_by').references(() => profiles.id, { onDelete: 'set null' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenIdx: uniqueIndex('business_invitations_token_hash_unique').on(table.tokenHash),
+    pendingEmailIdx: uniqueIndex('business_invitations_pending_email_unique')
+      .on(table.businessId, table.email)
+      .where(sql`${table.status} = 'pending'`),
+    emailCheck: check('business_invitations_email_check', sql`${table.email} = lower(btrim(${table.email}))`),
+    roleCheck: check('business_invitations_role_check', sql`${table.role} <> 'owner'`),
+  }),
+);
+
+export const businessAuditLogs = pgTable('business_audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  actorId: uuid('actor_id').references(() => profiles.id, { onDelete: 'set null' }),
+  action: text('action').notNull(),
+  targetProfileId: uuid('target_profile_id').references(() => profiles.id, { onDelete: 'set null' }),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const businessLocations = pgTable('business_locations', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -396,6 +444,8 @@ export type NewBusinessApplication = typeof businessApplications.$inferInsert;
 export type Business = typeof businesses.$inferSelect;
 export type NewBusiness = typeof businesses.$inferInsert;
 export type BusinessMembership = typeof businessMemberships.$inferSelect;
+export type BusinessInvitation = typeof businessInvitations.$inferSelect;
+export type BusinessAuditLog = typeof businessAuditLogs.$inferSelect;
 export type BusinessLocation = typeof businessLocations.$inferSelect;
 export type MenuItem = typeof menuItems.$inferSelect;
 export type NewMenuItem = typeof menuItems.$inferInsert;

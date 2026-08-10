@@ -1,12 +1,19 @@
 import { MemberRole, Permission } from './types';
 
+const allPermissions: Permission[] = [
+  'business.profile.read', 'business.profile.write', 'menu.manage', 'content.manage',
+  'rewards.manage', 'team.read', 'team.manage', 'payments.read', 'payments.charge',
+  'payments.refund', 'payments.connect', 'loyalty.issue', 'analytics.read',
+  'ownership.transfer',
+];
+
 const rolePermissions: Record<MemberRole, Permission[]> = {
-  owner: ['business.profile.write', 'menu.manage', 'content.manage', 'rewards.manage', 'team.read', 'team.manage', 'payments.read', 'payments.connect', 'analytics.read'],
-  admin: ['business.profile.write', 'menu.manage', 'content.manage', 'rewards.manage', 'team.read', 'team.manage', 'payments.read', 'payments.connect', 'analytics.read'],
-  manager: ['business.profile.write', 'menu.manage', 'content.manage', 'rewards.manage', 'team.read', 'analytics.read'],
-  finance: ['payments.read', 'payments.connect', 'analytics.read'],
-  barista: [],
-  viewer: ['analytics.read'],
+  owner: allPermissions,
+  admin: allPermissions.filter((permission) => permission !== 'ownership.transfer'),
+  manager: ['business.profile.read', 'business.profile.write', 'menu.manage', 'content.manage', 'rewards.manage', 'team.read', 'analytics.read'],
+  finance: ['business.profile.read', 'payments.read', 'payments.charge', 'payments.refund', 'payments.connect', 'analytics.read'],
+  barista: ['business.profile.read', 'payments.charge', 'loyalty.issue'],
+  viewer: ['business.profile.read', 'analytics.read'],
 };
 
 export const hasPermission = (role: MemberRole, permission: Permission) =>

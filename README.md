@@ -17,6 +17,8 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 - Business access applications with draft, review, approval, rejection, and resubmission states
 - Approved-owner workspaces with permission-aware navigation and editable public business details, location, and opening hours
 - Staff membership roles and database permission helpers for owner, admin, manager, finance, barista, and viewer access
+- Employee invitation, acceptance, revocation, role changes, suspension, removal, and team audit foundations
+- Permission-aware Team screens with a hashed, manually shared, single-use invitation code
 - Mock data so the product can be previewed before Supabase is connected
 
 ## Run locally
@@ -34,8 +36,10 @@ To connect Supabase:
 2. Set `DATABASE_URL` and run `pnpm run db:migrate` to create tables from Drizzle.
 3. Run `supabase/migrations/001_supabase_security.sql` in the SQL Editor to add auth triggers, RLS policies, and storage buckets.
 4. Run `supabase/migrations/002_business_profiles.sql` to add application, staff-permission, and business-profile policies.
-5. Put the project URL and publishable/anon key in `.env`.
-6. Restart Expo so the public environment variables are bundled.
+5. Run `pnpm run db:migrate` again when needed to apply `drizzle/0003_employee_invitations.sql`, then run `supabase/migrations/003_employee_invitations.sql`.
+6. Run `supabase/tests/003_employee_invitations_rls.sql` in the SQL Editor. It is transactional and rolls back its test records.
+7. Put the project URL and publishable/anon key in `.env`.
+8. Restart Expo so the public environment variables are bundled.
 
 Bootstrap the first platform reviewer in the Supabase SQL Editor:
 
@@ -102,8 +106,8 @@ Profile data and favourites have typed tRPC procedures under `profile.*`. Email 
 
 ### Key model choices
 
-- `profiles.role` controls the primary app experience.
-- A business has one owner in the MVP. A staff-members table can be added later for baristas/managers.
+- `profiles.role` controls the primary app experience; business access is granted independently through active `business_memberships`.
+- A business has one protected owner in the MVP and can add staff with permission-based roles.
 - Posts support ordinary news and events; event dates and `is_pinned` distinguish event posts.
 - Rewards support stamp cards, bonuses, and combos. `reward_items` links a reward to one or more menu items.
 - Stamp changes are stored as immutable transactions. In production, issuing/redeeming stamps should happen through a secure database function or Edge Function, not direct client updates.
@@ -140,12 +144,10 @@ Profile data and favourites have typed tRPC procedures under `profile.*`. Email 
 
 ## Recommended next implementation slice
 
-Implement real authentication and onboarding next:
+Deploy and verify the employee invitation slice before adding more business modules:
 
-1. Email sign-up/sign-in and profile creation
-2. Persistent session provider
-3. Role-based navigation
-4. Business setup form or customer location permission
-5. Real business list/detail queries
-
-After that, build menu CRUD and media upload before loyalty transactions. That gives businesses useful content to publish and clients something meaningful to discover.
+1. Apply Drizzle `0003`, then Supabase `003`.
+2. Run the transactional invitation/RLS test script.
+3. Test the owner-to-employee invitation lifecycle with separate accounts on a physical device.
+4. Record and fix any permission failures.
+5. Add workspace selection and protected Expo Router route groups using SDK 57 patterns.

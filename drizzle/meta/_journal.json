@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1784843630360,
+      "tag": "0000_silky_thing",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785536294870,
+      "tag": "0001_heavy_proudstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786384242715,
+      "tag": "0002_business_profiles",
+      "breakpoints": true
+    }
+  ]
+}

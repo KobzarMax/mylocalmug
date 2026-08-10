@@ -6,17 +6,19 @@ import { hasPermission } from '../permissions';
 import { Permission, Workspace } from '../types';
 import { colors, styles } from '../styles';
 
-export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void }) {
+export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile, onReviewApplications }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; onReviewApplications?: () => void }) {
   const { business, role } = workspace;
   const completion = Math.round(([business.description, business.address, business.contactEmail, business.contactPhone, business.websiteUrl].filter(Boolean).length / 5) * 100);
-  const actions = [
-    { icon: 'storefront-outline' as const, label: 'Edit profile', permission: 'business.profile.write' as Permission, action: onEditProfile },
-    { icon: 'restaurant-outline' as const, label: 'Menu', permission: 'menu.manage' as Permission },
-    { icon: 'newspaper-outline' as const, label: 'News & events', permission: 'content.manage' as Permission },
-    { icon: 'gift-outline' as const, label: 'Rewards', permission: 'rewards.manage' as Permission },
-    { icon: 'people-outline' as const, label: 'Team', permission: 'team.read' as Permission },
-    { icon: 'card-outline' as const, label: 'Payments', permission: 'payments.read' as Permission },
-  ].filter((item) => hasPermission(role, item.permission));
+  const allActions: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; permission: Permission; action?: () => void }[] = [
+    { icon: 'storefront-outline', label: 'Edit profile', permission: 'business.profile.write', action: onEditProfile },
+    { icon: 'restaurant-outline', label: 'Menu', permission: 'menu.manage' },
+    { icon: 'newspaper-outline', label: 'News & events', permission: 'content.manage' },
+    { icon: 'gift-outline', label: 'Rewards', permission: 'rewards.manage' },
+    { icon: 'people-outline', label: 'Team', permission: 'team.read' },
+    { icon: 'card-outline', label: 'Payments', permission: 'payments.read' },
+  ];
+  const actions = allActions.filter((item) => hasPermission(role, item.permission));
+  if (onReviewApplications) actions.push({ icon: 'shield-checkmark-outline', label: 'Application reviews', permission: 'business.profile.write', action: onReviewApplications });
 
   return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.scroll}>
     <View style={styles.topRow}><Pressable onPress={onBack} style={styles.iconButton}><Ionicons name="swap-horizontal" size={20} color={colors.green} /></Pressable><View style={styles.topTitle}><Text style={styles.overline}>{business.name}</Text><Text style={styles.pageTitle}>Good morning, {displayName.split(' ')[0]}</Text></View><View style={styles.rolePill}><Text style={styles.roleText}>{role}</Text></View></View>

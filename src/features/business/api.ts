@@ -1,6 +1,52 @@
 import { BusinessApplicationInput } from '../../lib/businessValidation';
 import { supabase } from '../../lib/supabase';
-import { Application, Business, BusinessLocation, DayHours, MemberRole, Workspace } from './types';
+import { Application, Business, BusinessLocation, DayHours, MemberRole, ReviewApplication, Workspace } from './types';
+
+export async function getPlatformAdminStatus(userId: string) {
+  const result = await supabase
+    .from('platform_admins')
+    .select('profile_id')
+    .eq('profile_id', userId)
+    .maybeSingle();
+  if (result.error) throw result.error;
+  return Boolean(result.data);
+}
+
+export async function getReviewApplications(): Promise<ReviewApplication[]> {
+  const result = await supabase
+    .from('business_applications')
+    .select('id, applicant_id, status, trading_name, legal_name, description, category, contact_email, contact_phone, website_url, address, company_number, vat_number, rejection_reason, submitted_at')
+    .in('status', ['submitted', 'under_review'])
+    .order('submitted_at', { ascending: true });
+  if (result.error) throw result.error;
+  return (result.data ?? []).map((row) => ({
+    id: row.id,
+    applicantId: row.applicant_id,
+    status: row.status,
+    tradingName: row.trading_name,
+    legalName: row.legal_name,
+    description: row.description,
+    category: row.category,
+    contactEmail: row.contact_email,
+    contactPhone: row.contact_phone,
+    websiteUrl: row.website_url,
+    address: row.address,
+    companyNumber: row.company_number,
+    vatNumber: row.vat_number,
+    rejectionReason: row.rejection_reason,
+    submittedAt: row.submitted_at,
+  }));
+}
+
+export async function reviewBusinessApplication(applicationId: string, approved: boolean, reason: string | null) {
+  const result = await supabase.rpc('review_business_application', {
+    target_application_id: applicationId,
+    approve: approved,
+    review_reason: reason,
+  });
+  if (result.error) throw result.error;
+  return result.data as string | null;
+}
 
 export async function getBusinessWorkspace(userId: string): Promise<Workspace | null> {
   const membership = await supabase

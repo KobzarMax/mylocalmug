@@ -6,6 +6,7 @@ import { BusinessApplicationForm } from './components/BusinessApplicationForm';
 import { BusinessDashboard } from './components/BusinessDashboard';
 import { BusinessProfileEditor } from './components/BusinessProfileEditor';
 import { PortalError, PortalLoading } from './components/BusinessUI';
+import { AdminReviewQueue } from './components/AdminReviewQueue';
 
 export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }: {
   userId: string;
@@ -16,14 +17,22 @@ export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }
 }) {
   const access = useBusinessAccess(userId);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [reviewingApplications, setReviewingApplications] = useState(false);
 
   if (access.loading) return <PortalLoading />;
   if (access.error) return <PortalError message={access.error} onRetry={access.refresh} onBack={onBack} />;
+  if (access.isPlatformAdmin && reviewingApplications) {
+    return <AdminReviewQueue onBack={() => setReviewingApplications(false)} />;
+  }
 
   if (access.workspace) {
     return editingProfile
       ? <BusinessProfileEditor workspace={access.workspace} onBack={() => setEditingProfile(false)} onSaved={access.refresh} />
-      : <BusinessDashboard workspace={access.workspace} displayName={displayName} onBack={onBack} onSignOut={onSignOut} onEditProfile={() => setEditingProfile(true)} />;
+      : <BusinessDashboard workspace={access.workspace} displayName={displayName} onBack={onBack} onSignOut={onSignOut} onEditProfile={() => setEditingProfile(true)} onReviewApplications={access.isPlatformAdmin ? () => setReviewingApplications(true) : undefined} />;
+  }
+
+  if (access.isPlatformAdmin) {
+    return <AdminReviewQueue onBack={onBack} />;
   }
 
   if (access.application && ['submitted', 'under_review', 'approved'].includes(access.application.status)) {

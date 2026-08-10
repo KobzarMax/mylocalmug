@@ -37,20 +37,20 @@ To connect Supabase:
 5. Put the project URL and publishable/anon key in `.env`.
 6. Restart Expo so the public environment variables are bundled.
 
-For the current MVP, application review is performed in the Supabase SQL Editor. First add the reviewer once:
+Bootstrap the first platform reviewer in the Supabase SQL Editor:
 
 ```sql
 insert into public.platform_admins (profile_id) values ('REVIEWER_PROFILE_UUID');
 ```
 
-Then approve or reject a submitted application:
+That user can then open **Business portal → Application reviews** in the app to inspect, approve, or reject submitted applications. The SQL functions remain available for operational recovery:
 
 ```sql
 select public.review_business_application('APPLICATION_UUID', true, null);
 select public.review_business_application('APPLICATION_UUID', false, 'Please verify the business address.');
 ```
 
-Approval atomically creates the private business workspace, owner membership, and primary location. A dedicated platform-admin review screen is intentionally a later slice.
+Approval atomically creates the private business workspace, owner membership, and primary location.
 
 Never put a Supabase service-role key in an Expo app.
 

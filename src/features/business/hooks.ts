@@ -7,24 +7,32 @@ import {
   getBusinessApplication,
   getBusinessHours,
   getBusinessWorkspace,
+  getPlatformAdminStatus,
+  getReviewApplications,
+  reviewBusinessApplication,
   saveBusinessApplication,
   saveBusinessProfile,
   submitBusinessApplication,
 } from './api';
-import { Application, createDefaultHours, DayHours, SelectedMedia, Workspace } from './types';
+import { Application, createDefaultHours, DayHours, ReviewApplication, SelectedMedia, Workspace } from './types';
 
 export function useBusinessAccess(userId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [application, setApplication] = useState<Application | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const nextWorkspace = await getBusinessWorkspace(userId);
+      const [nextWorkspace, adminStatus] = await Promise.all([
+        getBusinessWorkspace(userId),
+        getPlatformAdminStatus(userId),
+      ]);
       setWorkspace(nextWorkspace);
+      setIsPlatformAdmin(adminStatus);
       setApplication(nextWorkspace ? null : await getBusinessApplication(userId));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Business area unavailable.');
@@ -34,7 +42,45 @@ export function useBusinessAccess(userId: string) {
   }, [userId]);
 
   useEffect(() => { refresh(); }, [refresh]);
-  return { loading, error, application, workspace, refresh };
+  return { loading, error, application, workspace, isPlatformAdmin, refresh };
+}
+
+export function useApplicationReviews() {
+  const [applications, setApplications] = useState<ReviewApplication[]>([]);
+  const [selected, setSelected] = useState<ReviewApplication | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await getReviewApplications();
+      setApplications(rows);
+      setSelected((current) => current ? rows.find((row) => row.id === current.id) ?? null : null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load applications.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const decide = async (approved: boolean, reason: string | null) => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      await reviewBusinessApplication(selected.id, approved, reason);
+      setSelected(null);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return { applications, selected, setSelected, loading, busy, error, refresh, decide };
 }
 
 export function useBusinessApplication(userId: string, initial: Application, onSubmitted: () => void) {

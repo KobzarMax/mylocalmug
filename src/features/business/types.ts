@@ -20,6 +20,11 @@ export type Application = BusinessApplicationInput & {
   rejectionReason: string | null;
 };
 
+export type ReviewApplication = Application & {
+  applicantId: string;
+  submittedAt: string | null;
+};
+
 export type Business = {
   id: string;
   name: string;

@@ -4,8 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -17,14 +15,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Session } from '@supabase/supabase-js';
 import { CoffeeShop, UserRole } from './src/types';
 import { coffeeShops } from './src/data/mockData';
-import { supabase } from './src/lib/supabase';
-import { EditProfileScreen, EditableProfile } from './src/components/EditProfileScreen';
+import { EditProfileScreen } from './src/components/EditProfileScreen';
 import { BusinessPortal } from './src/features/business/BusinessPortal';
 import { getProfileAvatarUrl } from './src/lib/profileImage';
-import { displayNameSchema, profileEmailSchema, profilePasswordSchema } from './src/lib/profileValidation';
+import { AuthEntry } from './src/features/auth/AuthEntry';
+import { useAuthenticatedAccount } from './src/features/auth/sessionHooks';
+import { AccountLoadError } from './src/features/auth/components/AccountLoadError';
 
 const C = {
   ink: '#241A16',
@@ -39,95 +37,26 @@ const C = {
 };
 
 type Tab = 'discover' | 'loyalty' | 'news' | 'profile';
-type AuthMode = 'login' | 'register';
 type Experience = 'customer' | 'business';
-type Profile = EditableProfile;
-
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
+  const account = useAuthenticatedAccount();
+  const { session, profile } = account;
   const [experience, setExperience] = useState<Experience>('customer');
   const [tab, setTab] = useState<Tab>('discover');
   const [selectedShop, setSelectedShop] = useState<CoffeeShop | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [loadingSession, setLoadingSession] = useState(true);
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoadingSession(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (!nextSession) {
-        setProfile(null);
-        setRole(null);
-        setExperience('customer');
-        setSelectedShop(null);
-        setEditingProfile(false);
-        setTab('discover');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!session?.user) return;
-
-    let mounted = true;
-    const loadProfile = async () => {
-      const fallbackRole = (session.user.user_metadata?.role as UserRole | undefined) ?? 'client';
-      const fallbackName =
-        (session.user.user_metadata?.display_name as string | undefined) ??
-        session.user.email?.split('@')[0] ??
-        'Coffee friend';
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, display_name, description, avatar_path')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (!mounted) return;
-
-      if (data) {
-        setProfile(data as Profile);
-        setRole(data.role as UserRole);
-        return;
-      }
-
-      if (error) {
-        console.warn('Profile fetch failed:', error.message);
-      }
-
-      const fallbackProfile = {
-        id: session.user.id,
-        role: fallbackRole,
-        display_name: fallbackName,
-        description: '',
-        avatar_path: null,
-      };
-      setProfile(fallbackProfile);
-      setRole(fallbackRole);
-
-      await supabase.from('profiles').upsert(fallbackProfile).select().maybeSingle();
-    };
-
-    loadProfile();
-
-    return () => {
-      mounted = false;
-    };
+    if (session) return;
+    setExperience('customer');
+    setSelectedShop(null);
+    setEditingProfile(false);
+    setTab('discover');
   }, [session]);
 
-  if (loadingSession) return <LoadingScreen />;
-  if (!session) return <AuthScreen />;
-  if (!profile || !role) return <LoadingScreen />;
+  if (account.loadingSession) return <LoadingScreen />;
+  if (!session) return <AuthEntry />;
+  if (account.profileError) return <AccountLoadError message={account.profileError} onRetry={account.reloadProfile} onSignOut={account.signOut} />;
+  if (!profile) return <LoadingScreen />;
   if (experience === 'business') {
     return (
       <BusinessPortal
@@ -135,7 +64,7 @@ export default function App() {
         email={session.user.email ?? ''}
         displayName={profile.display_name}
         onBack={() => setExperience('customer')}
-        onSignOut={() => supabase.auth.signOut()}
+        onSignOut={account.signOut}
       />
     );
   }
@@ -146,7 +75,7 @@ export default function App() {
         email={session.user.email ?? ''}
         onBack={() => setEditingProfile(false)}
         onSaved={(nextProfile) => {
-          setProfile(nextProfile);
+          account.setProfile(nextProfile);
           setEditingProfile(false);
         }}
       />
@@ -172,7 +101,7 @@ export default function App() {
                   description={profile?.description ?? ''}
                   avatarPath={profile?.avatar_path ?? null}
                   onEdit={() => setEditingProfile(true)}
-                  onSignOut={() => supabase.auth.signOut()}
+                  onSignOut={account.signOut}
                   onSwitch={() => setExperience('business')}
                 />
               )}
@@ -190,145 +119,6 @@ function LoadingScreen() {
       <ActivityIndicator color={C.green} size="large" />
       <Text style={styles.loadingText}>Opening Local Mug...</Text>
     </LinearGradient>
-  );
-}
-
-function AuthScreen() {
-  const [mode, setMode] = useState<AuthMode>('login');
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const isRegister = mode === 'register';
-
-  const submit = async () => {
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanName = displayName.trim();
-
-    if (!cleanEmail || !password || (isRegister && !cleanName)) {
-      Alert.alert('Missing details', 'Please fill in the required fields.');
-      return;
-    }
-
-    if (!profileEmailSchema.safeParse(cleanEmail).success) {
-      Alert.alert('Invalid email', 'Enter a valid email address.');
-      return;
-    }
-
-    if (isRegister && !displayNameSchema.safeParse(cleanName).success) {
-      Alert.alert('Invalid name', 'Use a name between 1 and 80 characters.');
-      return;
-    }
-
-    if (isRegister && !profilePasswordSchema.safeParse(password).success) {
-      Alert.alert('Password too short', 'Use at least 8 characters.');
-      return;
-    }
-
-    setBusy(true);
-    const { error } = isRegister
-      ? await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: { data: { display_name: cleanName } },
-        })
-      : await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-    setBusy(false);
-
-    if (error) {
-      Alert.alert(isRegister ? 'Could not create account' : 'Could not sign in', error.message);
-      return;
-    }
-
-    if (isRegister) {
-      Alert.alert('Account created', 'If email confirmation is enabled, check your inbox to finish signing in.');
-    }
-  };
-
-  return (
-    <LinearGradient colors={['#F8F1E8', '#E3EEE7']} style={styles.authBg}>
-      <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.authAvoid}>
-        <ScrollView contentContainerStyle={styles.authScroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.beanMark}>
-            <Ionicons name="cafe" size={38} color={C.paper} />
-          </View>
-          <Text style={styles.brand}>Local Mug</Text>
-          <Text style={styles.authTitle}>{isRegister ? 'Create your account' : 'Welcome back'}</Text>
-          <Text style={styles.heroSub}>
-            {isRegister
-              ? 'Join your local coffee network as a customer or business.'
-              : 'Sign in to collect stamps, follow shops, and manage your coffee community.'}
-          </Text>
-
-          <View style={styles.authCard}>
-            <View style={styles.authTabs}>
-              <AuthTab label="Log in" active={!isRegister} onPress={() => setMode('login')} />
-              <AuthTab label="Register" active={isRegister} onPress={() => setMode('register')} />
-            </View>
-
-            {isRegister && (
-              <>
-                <Text style={styles.inputLabel}>Name</Text>
-                <TextInput
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  maxLength={80}
-                  placeholder="Alex Morgan"
-                  placeholderTextColor="#9B918A"
-                  style={styles.input}
-                />
-              </>
-            )}
-
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              placeholder="you@example.com"
-              placeholderTextColor="#9B918A"
-              style={styles.input}
-            />
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholder="Minimum 8 characters"
-              placeholderTextColor="#9B918A"
-              style={styles.input}
-            />
-
-            <Pressable
-              disabled={busy}
-              onPress={submit}
-              style={({ pressed }) => [styles.primaryButton, busy && styles.disabled, pressed && styles.pressed]}
-            >
-              {busy ? (
-                <ActivityIndicator color={C.paper} />
-              ) : (
-                <>
-                  <Ionicons name={isRegister ? 'person-add-outline' : 'log-in-outline'} size={18} color={C.paper} />
-                  <Text style={styles.primaryText}>{isRegister ? 'Create account' : 'Log in'}</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </LinearGradient>
-  );
-}
-
-function AuthTab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={[styles.authTab, active && styles.authTabActive]}>
-      <Text style={[styles.authTabText, active && styles.authTabTextActive]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -648,18 +438,6 @@ const styles = StyleSheet.create({
   centeredScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 14, fontSize: 13, fontWeight: '700', color: C.green },
   scroll: { padding: 20, paddingBottom: 40 },
-  authBg: { flex: 1 },
-  authAvoid: { flex: 1 },
-  authScroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 68, paddingBottom: 28, alignItems: 'center' },
-  authTitle: { marginTop: 34, fontSize: 33, lineHeight: 39, fontWeight: '800', color: C.ink, textAlign: 'center' },
-  authCard: { width: '100%', marginTop: 28, padding: 16, borderRadius: 18, backgroundColor: C.paper, borderWidth: 1, borderColor: C.line },
-  authTabs: { height: 42, flexDirection: 'row', backgroundColor: C.cream, borderRadius: 13, padding: 4, marginBottom: 16 },
-  authTab: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
-  authTabActive: { backgroundColor: C.paper, borderWidth: 1, borderColor: C.line },
-  authTabText: { fontSize: 12, fontWeight: '800', color: C.muted },
-  authTabTextActive: { color: C.green },
-  inputLabel: { marginTop: 12, marginBottom: 7, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: C.muted, textTransform: 'uppercase' },
-  input: { height: 50, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, fontSize: 15, color: C.ink, backgroundColor: '#FFFEFC' },
   roleToggle: { flexDirection: 'row', gap: 9 },
   roleChip: { flex: 1, height: 44, borderWidth: 1, borderColor: C.line, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFEFC' },
   roleChipActive: { backgroundColor: C.mint, borderColor: C.green },
@@ -726,7 +504,6 @@ const styles = StyleSheet.create({
   action: { flex: 1, alignItems: 'center', gap: 5, backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 11 },
   actionText: { fontSize: 10, fontWeight: '700', color: C.green },
   primaryButton: { marginTop: 14, height: 52, borderRadius: 16, backgroundColor: C.green, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
-  disabled: { opacity: 0.65 },
   primaryText: { color: C.paper, fontSize: 14, fontWeight: '800' },
   menuRow: { flexDirection: 'row', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, alignItems: 'center' },
   menuImage: { width: 64, height: 64, borderRadius: 14 },

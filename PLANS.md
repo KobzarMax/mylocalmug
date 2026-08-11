@@ -1,6 +1,6 @@
 # Local Mug implementation plan
 
-Last updated: 10 August 2026
+Last updated: 11 August 2026
 
 ## Product goal
 
@@ -29,8 +29,15 @@ Implemented:
 - Approved applicants receive an owner membership; invited employees receive a role-specific membership.
 - Email/password signup, sign-in, persistent sessions, profile creation, and sign-out are connected to Supabase Auth.
 - The Expo app already declares the `localmug` custom URL scheme.
+- Authentication is separated into API, state hooks, validation, styles, and small presentational screens under `src/features/auth`.
+- Signup passes the stable `localmug://auth/confirm` callback instead of relying on the localhost default.
+- A persisted “Check your email” state supports confirmation-link callbacks, copied numeric OTP verification, and resend with a 60-second cooldown.
+- Native callbacks support PKCE codes, access/refresh token fragments, token hashes, and actionable expired-link errors.
+- Session/profile loading and sign-out are behind the auth API and hooks rather than implemented directly in `App.tsx`.
 
-Current limitation discovered during testing: signup confirmation falls back to `http://localhost:3000`, and an expired or pre-fetched single-use link cannot verify the account. The app does not yet pass an email redirect URL, process the native callback, provide a pending-confirmation screen, resend confirmation email, or accept a copied email OTP.
+Auth implementation status: **DONE**. On 11 August 2026, the Supabase Site URL was changed to `localmug://auth/confirm`, the existing `localmug://**` redirect allow-list was verified, and the native iOS debug app built and launched successfully. User-owned inbox and device acceptance remains a deployment check, not an unfinished code slice.
+
+Supabase currently requires custom SMTP before it allows this project to edit the default confirmation template. Until SMTP is connected, the app remains compatible with Supabase's default link email. After SMTP is connected, use the code-only `{{ .Token }}` template documented in `README.md` to make confirmation resistant to email-link scanners.
 
 ### Customer application
 
@@ -98,9 +105,19 @@ Current limitation: the new invitation migrations are ready locally but are not 
 
 ### Code structure
 
-The business and team features use the modular reference structure:
+The auth, business, and team features use the modular reference structure:
 
 ```text
+src/features/auth/
+  AuthEntry.tsx
+  api.ts
+  hooks.ts
+  sessionHooks.ts
+  styles.ts
+  types.ts
+  validation.ts
+  components/
+
 src/features/business/
   BusinessPortal.tsx
   api.ts
@@ -151,7 +168,7 @@ on conflict do nothing;
 ## Known gaps and risks
 
 - Live end-to-end testing with separate applicant, administrator, owner, employee, customer, and anonymous accounts is not yet recorded.
-- Email confirmation is not production-ready: redirect handling, resend, OTP entry, and scanner-resistant verification are missing.
+- Production email confirmation requires custom SMTP plus the documented code-only Supabase template; inbox/device acceptance is covered by the deployment checklist.
 - The current business portal loads the first active business membership; there is no multi-workspace selector.
 - Full Expo Router protected route groups are not implemented. The current flow uses component state plus permission-filtered actions.
 - Employee invitations require migration deployment and live multi-account verification.
@@ -165,25 +182,23 @@ on conflict do nothing;
 
 ## Next implementation steps
 
-### 1. Finish account email verification
+### 1. Apply and verify employee invitations
 
 Priority: immediate.
 
-- In Supabase Auth URL Configuration, replace the default localhost Site URL and allow the app callback URL.
-- Pass an explicit confirmation redirect from signup instead of relying on the Supabase default.
-- Add a dedicated “Check your email” state; do not show “account created” as if authentication is complete.
-- Add resend-confirmation with a cooldown and actionable rate-limit/error states.
-- Add a scanner-resistant email OTP option so users can copy a code into the app instead of consuming a link.
-- Process the native callback and refresh the authenticated session using Expo SDK 57 linking patterns.
-- Keep Auth API calls in a dedicated auth API module and state orchestration in hooks; split the current authentication UI out of `App.tsx`.
-- Verify confirmation, resend, expired-token, wrong-token, already-confirmed, and sign-in-after-confirmation scenarios.
-- Test the callback in an Expo development build and production-like build; document any Expo Go-only development URL handling separately.
+- Apply Drizzle migration `0003`, then Supabase migration `003` if they are not already recorded remotely.
+- Run `supabase/tests/003_employee_invitations_rls.sql`; confirm it completes and rolls back without an assertion error.
+- Test owner invitation creation and secure code handoff on a physical iOS device.
+- Accept with a separate account using the exact invited email.
+- Verify manager read-only team access, admin management boundaries, and viewer/barista/finance denial.
+- Verify revoke, role change, suspend, restore, remove, and forbidden cross-business access from separate accounts.
+- Decide on an email provider and trusted delivery endpoint before replacing manual invitation-code sharing.
 
-Definition of done: a new user can register, verify the exact email they control, return to the app, and sign in without encountering a localhost redirect; expired and pre-fetched links have a working resend or OTP recovery path.
+Definition of done: an owner can invite an employee, the employee can accept with the intended role, both accounts see only authorized business data/actions, and revoked access stops working.
 
 ### 2. Verify the live business application flow
 
-Priority: immediately after email verification.
+Priority: immediately after invitation migration verification.
 
 - Create separate applicant and platform-admin test accounts.
 - Add the administrator profile to `platform_admins`.
@@ -197,22 +212,7 @@ Priority: immediately after email verification.
 
 Definition of done: the complete application-to-published-profile workflow succeeds on a physical iOS device and all negative RLS checks fail safely.
 
-### 3. Apply and verify employee invitations
-
-Priority: immediate after the existing business-flow check.
-
-- Apply Drizzle migration `0003`, followed by Supabase migration `003`.
-- Run `supabase/tests/003_employee_invitations_rls.sql`; confirm it completes and rolls back without an assertion error.
-- Test owner invitation creation and secure code handoff on a physical iOS device.
-- Accept with a separate account using the exact invited email.
-- Verify manager read-only team access, admin management boundaries, and viewer/barista/finance denial.
-- Verify revoke, role change, suspend, restore, and remove from separate accounts.
-- Confirm unauthorized direct table mutations and cross-business reads fail.
-- Decide on an email provider and trusted delivery endpoint before replacing manual code sharing.
-
-Definition of done: the migration test passes and an owner-to-employee invitation lifecycle succeeds on a physical device while every unauthorized role/account check fails safely.
-
-### 4. Routing and workspace selection
+### 3. Routing and workspace selection
 
 - Introduce Expo Router using SDK 57 patterns.
 - Add protected authentication, customer, application, admin-review, workspace, and business route groups.
@@ -220,7 +220,7 @@ Definition of done: the migration test passes and an owner-to-employee invitatio
 - Preserve RLS as the authorization boundary.
 - Add route-level loading, denied, missing-workspace, and suspended states.
 
-### 5. Finish business profile quality
+### 4. Finish business profile quality
 
 - Add special opening hours and holiday closures.
 - Add multiple business locations.
@@ -231,7 +231,7 @@ Definition of done: the migration test passes and an owner-to-employee invitatio
 - Add customer preview before publication.
 - Add accessibility, offline, retry, and device-size QA.
 
-### 6. Menu management
+### 5. Menu management
 
 - Menu-category CRUD and ordering.
 - Menu-item CRUD, price, description, photo, and availability.
@@ -239,14 +239,14 @@ Definition of done: the migration test passes and an owner-to-employee invitatio
 - Customer discovery queries backed by published business/menu data.
 - Empty/loading/error states and validation.
 
-### 7. News, events, and rewards
+### 6. News, events, and rewards
 
 - News and event creation, editing, scheduling, pinning, and publication.
 - Reward creation and menu-item linking.
 - Secure loyalty wallet opening, stamp issuing, redemption, and immutable audit history.
 - Replace mock customer news, rewards, and shop details with live queries.
 
-### 8. Payments
+### 7. Payments
 
 - Select and deploy a trusted backend or Supabase Edge Functions.
 - Add provider-neutral payment connection and transaction tables.
@@ -256,7 +256,7 @@ Definition of done: the migration test passes and an owner-to-employee invitatio
 - Implement refunds and reconciliation.
 - Prototype PayPal as a separate provider.
 
-### 9. Terminals
+### 8. Terminals
 
 - Move development to an Expo development build because Terminal requires native code.
 - Integrate Stripe Terminal with Connect.
@@ -265,7 +265,7 @@ Definition of done: the migration test passes and an owner-to-employee invitatio
 - Add a trusted Terminal connection-token endpoint.
 - Test simulated readers, physical readers, and Tap to Pay where supported.
 
-### 10. Launch readiness
+### 9. Launch readiness
 
 - Automated unit, integration, RLS, and payment-invariant tests.
 - Analytics and crash reporting.

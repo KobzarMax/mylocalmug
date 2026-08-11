@@ -9,6 +9,7 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 - Customer discovery, coffee-shop detail, menu ratings, reward wallet, news, and profile screens
 - Business dashboard with menu, post, reward, and event entry points
 - A Supabase client configured for React Native session persistence
+- Native email confirmation with a persisted pending state, resend cooldown, copied OTP entry, and `localmug://auth/confirm` callback handling
 - An initial SQL migration with profiles, businesses, menus, posts/events, memberships, reviews, and flexible loyalty rewards
 - Drizzle schema and CLI scripts for typed table migrations
 - A starter tRPC router for typed server/API operations
@@ -40,6 +41,36 @@ To connect Supabase:
 6. Run `supabase/tests/003_employee_invitations_rls.sql` in the SQL Editor. It is transactional and rolls back its test records.
 7. Put the project URL and publishable/anon key in `.env`.
 8. Restart Expo so the public environment variables are bundled.
+
+### Supabase email confirmation
+
+Configure **Authentication → URL Configuration**:
+
+- Site URL: `localmug://auth/confirm`
+- Redirect URL: `localmug://**`
+
+Configure **Authentication → Email Templates → Confirm signup** with a copied code. Omitting a directly consumable confirmation link prevents email security scanners from spending the token before the user:
+
+```html
+<h2>Confirm your Local Mug account</h2>
+<p>Your confirmation code is: <strong>{{ .Token }}</strong></p>
+<p>Return to Local Mug and enter this code to finish creating your account.</p>
+```
+
+Supabase requires **Authentication → SMTP Settings** to be configured before this project can edit email templates. Without custom SMTP, keep the default link template; the app processes it through the configured native callback. With custom SMTP enabled, replace the template with the code-only HTML above.
+
+The app also passes and handles `localmug://auth/confirm` if a link-based template is used for other Auth flows. The custom scheme is stable in development and production builds. Expo Go uses changing `exp://` URLs and is not the acceptance environment for this callback. See the [Expo SDK 57 Linking reference](https://docs.expo.dev/versions/v57.0.0/sdk/linking/), [Supabase native deep-link guide](https://supabase.com/docs/guides/auth/native-mobile-deep-linking), and [Supabase email prefetching guidance](https://supabase.com/docs/guides/auth/auth-email-templates#email-prefetching).
+
+#### Manual email confirmation acceptance
+
+1. In Supabase, confirm **Authentication → URL Configuration** shows Site URL `localmug://auth/confirm` and Redirect URL `localmug://**`.
+2. For scanner-resistant numeric codes, connect your SMTP provider, open **Email Templates → Confirm signup**, paste the code-only template above, and save it.
+3. Run a native development build with `pnpm exec expo run:ios` or your normal physical-device development-build workflow. Do not use Expo Go for this callback test.
+4. Register with a new email address you control. The app must stay on **Check your email** and must not treat registration as authenticated.
+5. Confirm using the newest email: enter its numeric code when the code-only template is active, or open its link when using Supabase's default template.
+6. Confirm the app opens the signed-in customer experience and that signing out and back in works.
+7. Register another new address, enter an incorrect code, then request a resend. Confirm the error is visible, resend is rate-limited for 60 seconds, the newest message works, and an expired older message gives a recoverable error.
+8. If a step fails, record the exact app message and the matching entry under **Supabase → Logs → Auth**; that evidence is sufficient to diagnose a configuration or service failure.
 
 Bootstrap the first platform reviewer in the Supabase SQL Editor:
 
@@ -144,7 +175,7 @@ Profile data and favourites have typed tRPC procedures under `profile.*`. Email 
 
 ## Recommended next implementation slice
 
-Deploy and verify the employee invitation slice before adding more business modules:
+Continue with the employee invitation lifecycle:
 
 1. Apply Drizzle `0003`, then Supabase `003`.
 2. Run the transactional invitation/RLS test script.

@@ -33,6 +33,16 @@ src/
 
 Follow the business feature under `src/features/business` as the reference implementation.
 
+## Implementation standard
+
+- Implement the requested slice completely and according to its stated requirements. Do not hand off placeholders, knowingly partial flows, speculative abstractions, or code that still requires routine cleanup.
+- Write production-minded code once: inspect the relevant existing architecture first, handle expected loading/error/empty/permission states, and keep the implementation internally consistent before presenting it as complete.
+- Prefer the smallest correct implementation. Avoid unrelated refactors, unnecessary dependencies, broad rewrites, and environment setup that does not materially validate the requested change.
+- Resolve defects found within the requested slice before handoff. Do not defer known in-scope problems to a future pass.
+- Do not claim live services, email delivery, payments, native-device behavior, or external configuration were verified unless they were actually tested.
+- When verification requires the user's inbox, credentials, physical device, paid provider, or dashboard decision, finish all code that can be completed locally and provide a concise step-by-step manual acceptance guide.
+- Treat a failed manual acceptance check as actionable evidence: request the exact visible error and relevant service log, then fix the demonstrated issue without reopening already-complete unrelated work.
+
 ## Separation of responsibilities
 
 - UI components must not call Supabase, Stripe, PayPal, database clients, or raw `fetch` endpoints directly.
@@ -106,15 +116,19 @@ Follow the business feature under `src/features/business` as the reference imple
 - Add or update `PLANS.md` when a completed slice changes project status or priorities.
 - Do not commit secrets, `.env.local`, generated native folders, or build outputs.
 - Do not rewrite or remove applied migrations.
+- Never create a Git commit, push a branch, or open a pull request unless the user explicitly requests that exact Git action in the current request.
+- Do not ask the user to commit or push during implementation. At handoff, recommend a commit only when the slice is ready and provide one prepared commit message; the user decides when to commit and push.
+- A previous request to commit or push does not authorize later Git actions for a new implementation slice.
 
-## Required verification
+## Proportional verification
 
-Before handing off application changes, run:
+Before handing off application code, run the fast deterministic checks relevant to the files changed:
 
 ```bash
 node node_modules/typescript/bin/tsc --noEmit
 node_modules/.bin/drizzle-kit check
-CI=1 node_modules/.bin/expo export --platform ios --output-dir /tmp/local-mug-export-check
 ```
 
-Also run targeted database/RLS tests when migrations or policies change. State clearly when live Supabase or physical-device testing was not performed.
+Run an Expo export, native build, simulator/device test, migration, or live service test only when it materially validates the requested slice or the user explicitly asks for it. Do not install system tooling or spend time on environment-heavy checks when a manual acceptance guide is the more efficient boundary.
+
+Run targeted database/RLS tests when migrations or policies change. Never apply a migration to a shared database merely to check syntax unless deployment was requested. State clearly which checks passed, which live checks were not performed, and which manual steps remain for the user.

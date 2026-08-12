@@ -6,12 +6,12 @@ import { hasPermission } from '../permissions';
 import { Permission, Workspace } from '../types';
 import { colors, styles } from '../styles';
 
-export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile, onOpenTeam, onReviewApplications }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; onOpenTeam: () => void; onReviewApplications?: () => void }) {
+export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile, onOpenMenu, onOpenTeam, onReviewApplications }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; onOpenMenu: () => void; onOpenTeam: () => void; onReviewApplications?: () => void }) {
   const { business, role } = workspace;
   const completion = Math.round(([business.description, business.address, business.contactEmail, business.contactPhone, business.websiteUrl].filter(Boolean).length / 5) * 100);
   const allActions: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; permission: Permission; action?: () => void }[] = [
     { icon: 'storefront-outline', label: 'Edit profile', permission: 'business.profile.write', action: onEditProfile },
-    { icon: 'restaurant-outline', label: 'Menu', permission: 'menu.manage' },
+    { icon: 'restaurant-outline', label: 'Menu', permission: 'menu.manage', action: onOpenMenu },
     { icon: 'newspaper-outline', label: 'News & events', permission: 'content.manage' },
     { icon: 'gift-outline', label: 'Rewards', permission: 'rewards.manage' },
     { icon: 'people-outline', label: 'Team', permission: 'team.read', action: onOpenTeam },

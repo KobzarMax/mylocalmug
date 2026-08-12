@@ -13,12 +13,17 @@ begin
 end;
 $$;
 
-insert into public.profiles (id, role, display_name) values
-  ('10000000-0000-0000-0000-000000000001', 'client', 'Test owner'),
-  ('10000000-0000-0000-0000-000000000002', 'client', 'Test admin'),
-  ('10000000-0000-0000-0000-000000000003', 'client', 'Test manager'),
-  ('10000000-0000-0000-0000-000000000004', 'client', 'Test viewer'),
-  ('10000000-0000-0000-0000-000000000005', 'client', 'Test invitee');
+-- Auth users are required because profiles.id references auth.users.id.
+-- The on_auth_user_created trigger creates the matching profile rows.
+insert into auth.users (
+  id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values
+  ('10000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'owner@example.com', '', now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Test owner"}', now(), now()),
+  ('10000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'admin@example.com', '', now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Test admin"}', now(), now()),
+  ('10000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'manager@example.com', '', now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Test manager"}', now(), now()),
+  ('10000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'viewer@example.com', '', now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Test viewer"}', now(), now()),
+  ('10000000-0000-0000-0000-000000000005', 'authenticated', 'authenticated', 'invitee@example.com', '', now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Test invitee"}', now(), now());
 
 insert into public.businesses (id, owner_id, name, slug)
 values (

@@ -1,6 +1,6 @@
 # Local Mug implementation plan
 
-Last updated: 11 August 2026
+Last updated: 12 August 2026
 
 ## Product goal
 
@@ -84,7 +84,7 @@ The dashboard filters actions using the user's membership permissions and does n
 
 ### Business membership and permissions
 
-Implemented locally:
+Implemented:
 
 - Customer-follow relationships renamed to `business_followers`.
 - Separate `business_memberships` table for staff access.
@@ -98,14 +98,29 @@ Implemented locally:
 - Secured invite, accept, revoke, role-change, suspend, restore, and remove database functions.
 - Team and invitation RLS policies plus an immutable team audit trail.
 - Permission-aware Team list, invitation form, one-time code handoff, invite acceptance, and member detail screens.
+- One-tap invitation-code copy with visible confirmation feedback.
 - Owner/admin management boundaries; only owners can assign or manage administrators.
 - A transactional owner/admin/manager/viewer/invitee/anonymous SQL policy test script.
 
-Current limitation: the new invitation migrations are ready locally but are not recorded as applied or live-tested. Invitations currently use a manually shared one-time code; email delivery and ownership transfer are not implemented.
+Employee invitation feature status: **DONE**. The invitation table and create, accept, and revoke functions were confirmed in the live Supabase project. Automatic invitation-email delivery remains intentionally pending until an email provider and trusted Edge Function are selected. Until then, owners securely share the copied single-use code. Ownership transfer is a separate future feature.
+
+### Menu management
+
+Implemented locally:
+
+- Permission-routed Menu workspace for owners, administrators, and managers.
+- Menu-category create, rename, delete, and ordering controls.
+- Menu-item create, edit, delete, price, description, category, photo, and availability controls.
+- Validated JPEG, PNG, and WebP uploads up to 5 MB with business-scoped paths and replacement/deletion cleanup.
+- Loading, empty, error, busy, confirmation, and unavailable-item states.
+- Supabase migration `004` restricts public reads to published businesses, aligns menu-media policies with `menu.manage`, and blocks cross-business category assignment.
+- Transactional anonymous/manager/viewer menu RLS verification script.
+
+Current limitation: Supabase migration `004` and its RLS test must be applied before the menu slice is considered deployed. The customer marketplace still renders mock menu data and will be connected to published menu queries after management verification.
 
 ### Code structure
 
-The auth, business, and team features use the modular reference structure:
+The auth, business, team, and menu features use the modular reference structure:
 
 ```text
 src/features/auth/
@@ -125,6 +140,15 @@ src/features/business/
   permissions.ts
   styles.ts
   types.ts
+  components/
+
+src/features/menu/
+  MenuEntry.tsx
+  api.ts
+  hooks.ts
+  styles.ts
+  types.ts
+  validation.ts
   components/
 
 src/features/team/
@@ -150,12 +174,13 @@ Applied successfully:
 - Drizzle migrations `0000`, `0001`, and `0002`.
 - Supabase migration `001_supabase_security.sql`.
 - Supabase migration `002_business_profiles.sql`.
-
-Ready to apply next, in this order:
-
 - Drizzle migration `0003_employee_invitations.sql`.
 - Supabase migration `003_employee_invitations.sql`.
-- Transactional verification script `supabase/tests/003_employee_invitations_rls.sql`.
+
+Ready to apply:
+
+- Supabase migration `004_menu_management.sql`.
+- Transactional verification script `supabase/tests/004_menu_management_rls.sql`.
 
 The first platform administrator still needs a row in `platform_admins` for the in-app review queue:
 
@@ -171,34 +196,32 @@ on conflict do nothing;
 - Production email confirmation requires custom SMTP plus the documented code-only Supabase template; inbox/device acceptance is covered by the deployment checklist.
 - The current business portal loads the first active business membership; there is no multi-workspace selector.
 - Full Expo Router protected route groups are not implemented. The current flow uses component state plus permission-filtered actions.
-- Employee invitations require migration deployment and live multi-account verification.
-- Automated email delivery and ownership transfer are missing.
+- Automatic invitation-email delivery and ownership transfer are missing; code-based invitations are complete.
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
-- Menu, news, events, rewards, payments, and analytics dashboard actions remain incomplete.
+- Customer menu rendering, news, events, rewards, payments, and analytics dashboard actions remain incomplete.
 - Payments and terminals are not implemented.
 - The customer marketplace remains mostly mock-backed.
 - The invitation RLS test exists as a transactional SQL script, but there is no automated test runner for database functions, hooks, or UI workflows.
 
 ## Next implementation steps
 
-### 1. Apply and verify employee invitations
+### 1. Deploy and verify menu management
 
 Priority: immediate.
 
-- Apply Drizzle migration `0003`, then Supabase migration `003` if they are not already recorded remotely.
-- Run `supabase/tests/003_employee_invitations_rls.sql`; confirm it completes and rolls back without an assertion error.
-- Test owner invitation creation and secure code handoff on a physical iOS device.
-- Accept with a separate account using the exact invited email.
-- Verify manager read-only team access, admin management boundaries, and viewer/barista/finance denial.
-- Verify revoke, role change, suspend, restore, remove, and forbidden cross-business access from separate accounts.
-- Decide on an email provider and trusted delivery endpoint before replacing manual invitation-code sharing.
+- Apply `supabase/migrations/004_menu_management.sql` in the Supabase SQL Editor.
+- Run `supabase/tests/004_menu_management_rls.sql`; confirm it completes and rolls back without an assertion error.
+- Verify category creation, rename, ordering, deletion, and uncategorized-item fallback as an owner.
+- Verify item creation, editing, photo replacement/removal, price, availability, and deletion.
+- Verify a manager can manage the menu while viewer, barista, and finance accounts cannot open or mutate it.
+- Verify anonymous/customer accounts cannot read an unpublished menu and can read a published menu.
 
-Definition of done: an owner can invite an employee, the employee can accept with the intended role, both accounts see only authorized business data/actions, and revoked access stops working.
+Definition of done: migration and RLS tests pass, permitted business roles can manage a complete menu, denied roles cannot mutate it, media cleanup works, and only published menus are customer-readable.
 
 ### 2. Verify the live business application flow
 
-Priority: immediately after invitation migration verification.
+Priority: immediately after menu verification.
 
 - Create separate applicant and platform-admin test accounts.
 - Add the administrator profile to `platform_admins`.
@@ -231,13 +254,11 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Add customer preview before publication.
 - Add accessibility, offline, retry, and device-size QA.
 
-### 5. Menu management
+### 5. Customer menu integration
 
-- Menu-category CRUD and ordering.
-- Menu-item CRUD, price, description, photo, and availability.
-- Business-scoped media upload and cleanup.
-- Customer discovery queries backed by published business/menu data.
-- Empty/loading/error states and validation.
+- Replace mock shop menu data with published business/category/item queries.
+- Preserve category order and hide unavailable items from order-focused views.
+- Add customer loading, empty, retry, and unpublished states.
 
 ### 6. News, events, and rewards
 

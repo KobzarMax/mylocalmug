@@ -13,6 +13,7 @@
     "@trpc/server": "^11.18.0",
     "drizzle-orm": "^0.45.2",
     "expo": "~57.0.8",
+    "expo-clipboard": "~57.0.1",
     "expo-image-picker": "~57.0.7",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.5",

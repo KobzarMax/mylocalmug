@@ -20,6 +20,7 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 - Staff membership roles and database permission helpers for owner, admin, manager, finance, barista, and viewer access
 - Employee invitation, acceptance, revocation, role changes, suspension, removal, and team audit foundations
 - Permission-aware Team screens with a hashed, manually shared, single-use invitation code
+- Business menu management with ordered categories, item CRUD, prices, photos, and availability
 - Mock data so the product can be previewed before Supabase is connected
 
 ## Run locally
@@ -39,8 +40,19 @@ To connect Supabase:
 4. Run `supabase/migrations/002_business_profiles.sql` to add application, staff-permission, and business-profile policies.
 5. Run `pnpm run db:migrate` again when needed to apply `drizzle/0003_employee_invitations.sql`, then run `supabase/migrations/003_employee_invitations.sql`.
 6. Run `supabase/tests/003_employee_invitations_rls.sql` in the SQL Editor. It is transactional and rolls back its test records.
-7. Put the project URL and publishable/anon key in `.env`.
-8. Restart Expo so the public environment variables are bundled.
+7. Run `supabase/migrations/004_menu_management.sql` to secure draft menus and menu media.
+8. Run `supabase/tests/004_menu_management_rls.sql`; it is transactional and rolls back its test records.
+9. Put the project URL and publishable/anon key in `.env`.
+10. Restart Expo so the public environment variables are bundled.
+
+### Menu management deployment
+
+1. Apply `supabase/migrations/004_menu_management.sql` in the Supabase SQL Editor.
+2. Run `supabase/tests/004_menu_management_rls.sql`. Success returns without an assertion error and the transaction rolls back all test data.
+3. Restart or reload the app, then open **Profile → Business portal → Menu** as an owner, administrator, or manager.
+4. Create and reorder categories; create an item with a price and photo; edit availability; replace/remove the photo; then delete the item.
+5. Confirm viewer, barista, and finance accounts do not receive the Menu management action.
+6. Keep the business unpublished and confirm customer/anonymous database reads return no menu rows; publish it and confirm those rows become readable.
 
 ### Supabase email confirmation
 

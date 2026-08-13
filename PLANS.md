@@ -1,6 +1,6 @@
 # Local Mug implementation plan
 
-Last updated: 12 August 2026
+Last updated: 13 August 2026
 
 ## Product goal
 
@@ -48,7 +48,7 @@ Implemented UI:
 - Loyalty wallet, news, and customer profile screens.
 - Profile editing, avatar upload, email/password changes, and favourite coffee shops.
 
-Current limitation: discovery, shop content, loyalty, news, and dashboard values are still primarily mock data. They are not yet a complete live marketplace.
+Current limitation: the News tab is now live-backed, while discovery, general shop details, loyalty, and dashboard values remain primarily mock data. They are not yet a complete live marketplace.
 
 ### Business access and applications
 
@@ -106,7 +106,7 @@ Employee invitation feature status: **DONE**. The invitation table and create, a
 
 ### Menu management
 
-Implemented locally:
+Implementation status: **CODE DONE** in commit `ab27d4d`.
 
 - Permission-routed Menu workspace for owners, administrators, and managers.
 - Menu-category create, rename, delete, and ordering controls.
@@ -116,7 +116,23 @@ Implemented locally:
 - Supabase migration `004` restricts public reads to published businesses, aligns menu-media policies with `menu.manage`, and blocks cross-business category assignment.
 - Transactional anonymous/manager/viewer menu RLS verification script.
 
-Current limitation: Supabase migration `004` and its RLS test must be applied before the menu slice is considered deployed. The customer marketplace still renders mock menu data and will be connected to published menu queries after management verification.
+Deployment status: Supabase migration `004_menu_management.sql` was applied. The first RLS-test run exposed an invalid test fixture, which was corrected to create transactional `auth.users` records before their linked profiles. A successful rerun of `004_menu_management_rls.sql` and live role/device acceptance are not yet recorded. The customer marketplace still renders mock menu data and will be connected to published menu queries after management verification.
+
+### News and events
+
+Implementation status: **CODE DONE; BACKEND DEPLOYED; DEVICE ACCEPTANCE PENDING**.
+
+- Modular business content workspace for owners, administrators, and managers using `content.manage`.
+- Constrained TenTap rich-text JSON, title, excerpt, cover media, pinning, drafts, immediate publication, and scheduled publication.
+- One-off timed/all-day events with timezone, optional end, venue, cancellation, and 1-week/1-day/1-hour reminders.
+- Live customer Following and Discover feeds with filters, pagination, safe public bylines, details, per-shop following, and alert preferences.
+- Private content-media bucket with permission-aware upload/read/delete policies and replacement cleanup.
+- Expo push-token registration, notification response handling, `localmug://content/{id}` navigation, and SDK 57 native calendar form integration.
+- Transactional event-notification outbox, per-device delivery ledger, retry leases, Expo ticket/receipt processing, and stale-token deactivation.
+- Supabase Edge Functions for dispatch and receipt processing plus pg_cron/pg_net scheduling migration.
+- Transactional owner/admin/manager/customer/denied-role/anonymous lifecycle and RLS test script.
+
+Deployment status reported on 13 August 2026: Drizzle `0004` and Supabase `005` are applied; both notification Edge Functions are deployed to project `omldnaucondjeaaaiqpk`; the Edge Function cron secret and all three Vault secrets are configured; and Supabase `006` is applied. The corrected `005_news_events_rls.sql` still needs one recorded successful rerun. EAS is linked with project ID `57210b8f-c2af-48a2-bcac-15d308ef1b3b`. iOS APNs registration is intentionally paused while the paid Apple Developer account-update issue is resolved. Android FCM and physical-device push/calendar acceptance are not yet recorded.
 
 ### Code structure
 
@@ -151,6 +167,19 @@ src/features/menu/
   validation.ts
   components/
 
+src/features/content/
+  BusinessContentEntry.tsx
+  CustomerContentEntry.tsx
+  api.ts
+  device.ts
+  editorHooks.ts
+  hooks.ts
+  media.ts
+  styles.ts
+  types.ts
+  validation.ts
+  components/
+
 src/features/team/
   TeamEntry.tsx
   InvitationAcceptanceGate.tsx
@@ -176,10 +205,22 @@ Applied successfully:
 - Supabase migration `002_business_profiles.sql`.
 - Drizzle migration `0003_employee_invitations.sql`.
 - Supabase migration `003_employee_invitations.sql`.
-
-Ready to apply:
-
 - Supabase migration `004_menu_management.sql`.
+- Drizzle migration `0004_sticky_the_twelve.sql`.
+- Supabase migration `005_news_events.sql`.
+- Supabase migration `006_event_notification_cron.sql`.
+- Edge Functions `dispatch-event-notifications` and `check-push-receipts`.
+- Vault secrets `project_url`, `anon_key`, and `event_notification_cron_secret`.
+
+News/events verification pending:
+
+- Successful rerun of the corrected transactional script `supabase/tests/005_news_events_rls.sql`.
+- Confirmation that both `cron.job` entries are active and producing successful runs.
+- Android FCM credentials and physical-device notification/calendar acceptance.
+- iOS APNs credentials and physical-device acceptance after Apple account registration resumes.
+
+Verification pending:
+
 - Transactional verification script `supabase/tests/004_menu_management_rls.sql`.
 
 The first platform administrator still needs a row in `platform_admins` for the in-app review queue:
@@ -199,19 +240,32 @@ on conflict do nothing;
 - Automatic invitation-email delivery and ownership transfer are missing; code-based invitations are complete.
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
-- Customer menu rendering, news, events, rewards, payments, and analytics dashboard actions remain incomplete.
+- Menu-management RLS and live role/device acceptance are not yet recorded.
+- Customer menu rendering, rewards, payments, and analytics dashboard actions remain incomplete.
+- News/events backend deployment is complete; RLS rerun, Cron execution evidence, Android FCM, paused iOS APNs registration, and physical-device push/calendar acceptance remain pending.
 - Payments and terminals are not implemented.
 - The customer marketplace remains mostly mock-backed.
 - The invitation RLS test exists as a transactional SQL script, but there is no automated test runner for database functions, hooks, or UI workflows.
 
 ## Next implementation steps
 
-### 1. Deploy and verify menu management
+### 1. Finish news/events acceptance
 
 Priority: immediate.
 
-- Apply `supabase/migrations/004_menu_management.sql` in the Supabase SQL Editor.
-- Run `supabase/tests/004_menu_management_rls.sql`; confirm it completes and rolls back without an assertion error.
+- Rerun the corrected transactional `005_news_events_rls.sql` test and record success.
+- Verify draft, schedule, publish, edit, archive, cancellation, cover replacement, and denied-role behavior.
+- Confirm both pg_cron jobs are active and their recent runs succeed.
+- Configure Android FCM and verify following, shop alert opt-out, reminder/update/cancellation delivery, notification navigation, and the calendar form on a physical Android device.
+- Resume APNs credentials and physical iOS acceptance after the Apple Developer account-update issue is resolved.
+
+Definition of done: database tests pass, permitted roles manage the complete lifecycle, public feeds expose only due published content, push jobs deliver idempotently, and a customer can intentionally add an event to the native calendar.
+
+### 2. Verify menu management
+
+Priority: immediate.
+
+- Rerun the corrected `supabase/tests/004_menu_management_rls.sql`; confirm it completes and rolls back without an assertion error.
 - Verify category creation, rename, ordering, deletion, and uncategorized-item fallback as an owner.
 - Verify item creation, editing, photo replacement/removal, price, availability, and deletion.
 - Verify a manager can manage the menu while viewer, barista, and finance accounts cannot open or mutate it.
@@ -219,7 +273,7 @@ Priority: immediate.
 
 Definition of done: migration and RLS tests pass, permitted business roles can manage a complete menu, denied roles cannot mutate it, media cleanup works, and only published menus are customer-readable.
 
-### 2. Verify the live business application flow
+### 3. Verify the live business application flow
 
 Priority: immediately after menu verification.
 
@@ -235,7 +289,7 @@ Priority: immediately after menu verification.
 
 Definition of done: the complete application-to-published-profile workflow succeeds on a physical iOS device and all negative RLS checks fail safely.
 
-### 3. Routing and workspace selection
+### 4. Routing and workspace selection
 
 - Introduce Expo Router using SDK 57 patterns.
 - Add protected authentication, customer, application, admin-review, workspace, and business route groups.
@@ -243,7 +297,7 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Preserve RLS as the authorization boundary.
 - Add route-level loading, denied, missing-workspace, and suspended states.
 
-### 4. Finish business profile quality
+### 5. Finish business profile quality
 
 - Add special opening hours and holiday closures.
 - Add multiple business locations.
@@ -254,20 +308,19 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Add customer preview before publication.
 - Add accessibility, offline, retry, and device-size QA.
 
-### 5. Customer menu integration
+### 6. Customer menu integration
 
 - Replace mock shop menu data with published business/category/item queries.
 - Preserve category order and hide unavailable items from order-focused views.
 - Add customer loading, empty, retry, and unpublished states.
 
-### 6. News, events, and rewards
+### 7. Rewards and loyalty
 
-- News and event creation, editing, scheduling, pinning, and publication.
 - Reward creation and menu-item linking.
 - Secure loyalty wallet opening, stamp issuing, redemption, and immutable audit history.
 - Replace mock customer news, rewards, and shop details with live queries.
 
-### 7. Payments
+### 8. Payments
 
 - Select and deploy a trusted backend or Supabase Edge Functions.
 - Add provider-neutral payment connection and transaction tables.
@@ -277,7 +330,7 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Implement refunds and reconciliation.
 - Prototype PayPal as a separate provider.
 
-### 8. Terminals
+### 9. Terminals
 
 - Move development to an Expo development build because Terminal requires native code.
 - Integrate Stripe Terminal with Connect.
@@ -286,7 +339,7 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Add a trusted Terminal connection-token endpoint.
 - Test simulated readers, physical readers, and Tap to Pay where supported.
 
-### 9. Launch readiness
+### 10. Launch readiness
 
 - Automated unit, integration, RLS, and payment-invariant tests.
 - Analytics and crash reporting.

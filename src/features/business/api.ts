@@ -68,7 +68,7 @@ export async function getBusinessWorkspace(userId: string): Promise<Workspace | 
       .single(),
     supabase
       .from('business_locations')
-      .select('id, address, phone')
+      .select('id, address, phone, timezone')
       .eq('business_id', businessId)
       .eq('is_primary', true)
       .maybeSingle(),
@@ -91,7 +91,7 @@ export async function getBusinessWorkspace(userId: string): Promise<Workspace | 
     isPublished: row.is_published,
   };
   const location: BusinessLocation | null = locationResult.data
-    ? { id: locationResult.data.id, address: locationResult.data.address, phone: locationResult.data.phone }
+    ? { id: locationResult.data.id, address: locationResult.data.address, phone: locationResult.data.phone, timezone: locationResult.data.timezone }
     : null;
   return { business, location, role: membership.data.role as MemberRole };
 }

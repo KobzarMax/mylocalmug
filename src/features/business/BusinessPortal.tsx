@@ -10,6 +10,7 @@ import { AdminReviewQueue } from './components/AdminReviewQueue';
 import { TeamEntry } from '../team/TeamEntry';
 import { InvitationAcceptanceGate } from '../team/InvitationAcceptanceGate';
 import { MenuEntry } from '../menu/MenuEntry';
+import { BusinessContentEntry } from '../content/BusinessContentEntry';
 
 export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }: {
   userId: string;
@@ -23,6 +24,7 @@ export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }
   const [reviewingApplications, setReviewingApplications] = useState(false);
   const [managingTeam, setManagingTeam] = useState(false);
   const [managingMenu, setManagingMenu] = useState(false);
+  const [managingContent, setManagingContent] = useState(false);
 
   if (access.loading) return <PortalLoading />;
   if (access.error) return <PortalError message={access.error} onRetry={access.refresh} onBack={onBack} />;
@@ -35,11 +37,14 @@ export function BusinessPortal({ userId, email, displayName, onBack, onSignOut }
   if (access.workspace && managingMenu) {
     return <MenuEntry workspace={access.workspace} onBack={() => setManagingMenu(false)} />;
   }
+  if (access.workspace && managingContent) {
+    return <BusinessContentEntry workspace={access.workspace} onBack={() => setManagingContent(false)} />;
+  }
 
   if (access.workspace) {
     return editingProfile
       ? <BusinessProfileEditor workspace={access.workspace} onBack={() => setEditingProfile(false)} onSaved={access.refresh} />
-      : <BusinessDashboard workspace={access.workspace} displayName={displayName} onBack={onBack} onSignOut={onSignOut} onEditProfile={() => setEditingProfile(true)} onOpenMenu={() => setManagingMenu(true)} onOpenTeam={() => setManagingTeam(true)} onReviewApplications={access.isPlatformAdmin ? () => setReviewingApplications(true) : undefined} />;
+      : <BusinessDashboard workspace={access.workspace} displayName={displayName} onBack={onBack} onSignOut={onSignOut} onEditProfile={() => setEditingProfile(true)} onOpenMenu={() => setManagingMenu(true)} onOpenContent={() => setManagingContent(true)} onOpenTeam={() => setManagingTeam(true)} onReviewApplications={access.isPlatformAdmin ? () => setReviewingApplications(true) : undefined} />;
   }
 
   if (access.isPlatformAdmin) {

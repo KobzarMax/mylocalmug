@@ -29,6 +29,13 @@
       "when": 1786395835372,
       "tag": "0003_employee_invitations",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786654999738,
+      "tag": "0004_sticky_the_twelve",
+      "breakpoints": true
     }
   ]
 }

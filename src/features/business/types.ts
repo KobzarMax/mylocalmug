@@ -45,7 +45,7 @@ export type Business = {
   isPublished: boolean;
 };
 
-export type BusinessLocation = { id: string; address: string; phone: string };
+export type BusinessLocation = { id: string; address: string; phone: string; timezone: string };
 export type Workspace = { business: Business; role: MemberRole; location: BusinessLocation | null };
 export type DayHours = { dayOfWeek: number; opensAt: string; closesAt: string; isClosed: boolean };
 export type SelectedMedia = { uri: string; mimeType: ProfileImageMime };

@@ -1,2 +1,4 @@
 allowBuilds:
   esbuild: true
+overrides:
+  react-dom: 19.2.3

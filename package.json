@@ -4,8 +4,10 @@
   "packageManager": "pnpm@11.10.0",
   "main": "index.ts",
   "dependencies": {
+    "@10play/tentap-editor": "^1.0.1",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@supabase/supabase-js": "^2.110.8",
     "@tanstack/react-query": "^5.101.4",
     "@trpc/client": "^11.18.0",
@@ -13,15 +15,22 @@
     "@trpc/server": "^11.18.0",
     "drizzle-orm": "^0.45.2",
     "expo": "~57.0.8",
+    "expo-calendar": "~57.0.1",
     "expo-clipboard": "~57.0.1",
+    "expo-constants": "~57.0.10",
+    "expo-device": "~57.0.1",
     "expo-image-picker": "~57.0.7",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.5",
+    "expo-notifications": "~57.0.10",
     "expo-status-bar": "~57.0.1",
     "postgres": "^3.4.9",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.0",
     "react-native-url-polyfill": "^4.0.0",
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -39,7 +48,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test:content": "tsx scripts/content-validation.test.ts && tsx scripts/push-delivery.test.ts"
   },
   "private": true
 }

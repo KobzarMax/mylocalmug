@@ -21,6 +21,8 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 - Employee invitation, acceptance, revocation, role changes, suspension, removal, and team audit foundations
 - Permission-aware Team screens with a hashed, manually shared, single-use invitation code
 - Business menu management with ordered categories, item CRUD, prices, photos, and availability
+- Business news/event authoring with rich text, drafts, scheduling, publication, pinning, cancellation, and content-scoped media
+- Live customer story feeds, shop following preferences, event push-delivery Edge Functions, notification deep links, and native calendar export
 - Mock data so the product can be previewed before Supabase is connected
 
 ## Run locally
@@ -42,8 +44,10 @@ To connect Supabase:
 6. Run `supabase/tests/003_employee_invitations_rls.sql` in the SQL Editor. It is transactional and rolls back its test records.
 7. Run `supabase/migrations/004_menu_management.sql` to secure draft menus and menu media.
 8. Run `supabase/tests/004_menu_management_rls.sql`; it is transactional and rolls back its test records.
-9. Put the project URL and publishable/anon key in `.env`.
-10. Restart Expo so the public environment variables are bundled.
+9. Run `pnpm run db:migrate` to apply `drizzle/0004_sticky_the_twelve.sql`, then apply `supabase/migrations/005_news_events.sql`.
+10. Run `supabase/tests/005_news_events_rls.sql`; it is transactional and rolls back its test records.
+11. Put the project URL and publishable/anon key in `.env`.
+12. Restart Expo so the public environment variables are bundled.
 
 ### Menu management deployment
 
@@ -101,6 +105,43 @@ Approval atomically creates the private business workspace, owner membership, an
 
 Never put a Supabase service-role key in an Expo app.
 
+### News, events, push, and calendar deployment
+
+1. Apply Drizzle migration `0004_sticky_the_twelve.sql`, then Supabase migration `005_news_events.sql`.
+2. Run `supabase/tests/005_news_events_rls.sql`. Success returns without an assertion error and rolls back every fixture.
+3. Link the Expo project with EAS so `extra.eas.projectId` is available to `expo-notifications`, then configure APNs and FCM credentials.
+4. Deploy both functions with JWT verification enabled:
+
+```bash
+supabase functions deploy dispatch-event-notifications
+supabase functions deploy check-push-receipts
+```
+
+5. Create an unpredictable notification cron secret and set it on both Edge Functions:
+
+```bash
+supabase secrets set EVENT_NOTIFICATION_CRON_SECRET=YOUR_LONG_RANDOM_VALUE
+```
+
+6. Add these values to Supabase Vault using **Database → Vault**:
+   - `project_url`: the project URL, such as `https://PROJECT_REF.supabase.co`
+   - `anon_key`: the project publishable/anon JWT used only to pass Edge Function JWT verification
+   - `event_notification_cron_secret`: the exact value set as `EVENT_NOTIFICATION_CRON_SECRET`
+7. Apply `supabase/migrations/006_event_notification_cron.sql` only after the functions and Vault secrets exist.
+8. Build a native development client. Calendar and remote push behavior are not accepted through Expo Go:
+
+```bash
+pnpm exec expo run:ios
+# or
+pnpm exec expo run:android
+```
+
+9. As an owner/admin/manager, open **Business portal → News & events**, create a draft, schedule or publish it, edit a published event, then cancel it.
+10. With a separate customer account, browse the News tab, follow the shop, allow notifications, toggle shop alerts, open a notification, and add the event through the native calendar form.
+11. Verify finance, barista, viewer, suspended, applicant, platform-admin-only, and anonymous scenarios cannot mutate content.
+
+The app never contains the service-role key. Edge Functions receive it from the Supabase runtime. Cron requests also require the separate `x-cron-secret`, while delivery functions use idempotent database jobs and Expo receipt processing.
+
 ## Database workflow
 
 Drizzle is the source of truth for application table shape and TypeScript row types:
@@ -144,14 +185,14 @@ Profile data and favourites have typed tRPC procedures under `profile.*`. Email 
 - Supabase Auth for email/password first; add Apple and Google after the core flow
 - Supabase Postgres with generated TypeScript database types
 - Supabase Storage for business covers, logos, news images, and menu photos
-- Expo Notifications for news, pinned events, and reward milestones
+- Expo Notifications for followed-shop event reminders, changes, and cancellations
 - Expo Location for nearby shops; PostGIS is a later optimization
 
 ### Key model choices
 
 - `profiles.role` controls the primary app experience; business access is granted independently through active `business_memberships`.
 - A business has one protected owner in the MVP and can add staff with permission-based roles.
-- Posts support ordinary news and events; event dates and `is_pinned` distinguish event posts.
+- Posts explicitly distinguish news and events, store constrained rich-text JSON, derive draft/scheduled/published state from publication timestamps, and retain cancelled events until archived.
 - Rewards support stamp cards, bonuses, and combos. `reward_items` links a reward to one or more menu items.
 - Stamp changes are stored as immutable transactions. In production, issuing/redeeming stamps should happen through a secure database function or Edge Function, not direct client updates.
 - Reviews target either a whole business or one menu item and enforce one review per author/target.
@@ -187,10 +228,10 @@ Profile data and favourites have typed tRPC procedures under `profile.*`. Email 
 
 ## Recommended next implementation slice
 
-Continue with the employee invitation lifecycle:
+Deploy and accept the news/events slice:
 
-1. Apply Drizzle `0003`, then Supabase `003`.
-2. Run the transactional invitation/RLS test script.
-3. Test the owner-to-employee invitation lifecycle with separate accounts on a physical device.
-4. Record and fix any permission failures.
-5. Add workspace selection and protected Expo Router route groups using SDK 57 patterns.
+1. Apply Drizzle `0004`, Supabase `005`, and the transactional `005` RLS test.
+2. Deploy the notification functions, configure EAS/APNs/FCM and Vault, then apply Supabase `006`.
+3. Complete owner/admin/manager and denied-role acceptance with separate accounts.
+4. Complete physical-device notification, deep-link, opt-out, and calendar acceptance.
+5. Record the results in `PLANS.md`, then continue with customer menu integration or routing/workspace selection.

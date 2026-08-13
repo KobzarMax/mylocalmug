@@ -1,9 +1,10 @@
 import 'react-native-url-polyfill/auto';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -23,6 +24,10 @@ import { getProfileAvatarUrl } from './src/lib/profileImage';
 import { AuthEntry } from './src/features/auth/AuthEntry';
 import { useAuthenticatedAccount } from './src/features/auth/sessionHooks';
 import { AccountLoadError } from './src/features/auth/components/AccountLoadError';
+import { CustomerContentEntry } from './src/features/content/CustomerContentEntry';
+import { FeaturedEvent } from './src/features/content/components/FeaturedEvent';
+import { subscribeToContentNotifications } from './src/features/content/device';
+import { usePushDeviceRefresh } from './src/features/content/hooks';
 
 const C = {
   ink: '#241A16',
@@ -45,12 +50,32 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('discover');
   const [selectedShop, setSelectedShop] = useState<CoffeeShop | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [contentId, setContentId] = useState<string | null>(null);
+  usePushDeviceRefresh(Boolean(session));
+  const openContent = useCallback((id: string) => {
+    setExperience('customer');
+    setSelectedShop(null);
+    setEditingProfile(false);
+    setTab('news');
+    setContentId(id);
+  }, []);
+  useEffect(() => {
+    const openUrl = (url: string | null) => {
+      const match = url?.match(/^localmug:\/\/content\/([0-9a-f-]{36})/i);
+      if (match) openContent(match[1]);
+    };
+    void Linking.getInitialURL().then(openUrl);
+    const links = Linking.addEventListener('url', ({ url }) => openUrl(url));
+    const notifications = subscribeToContentNotifications(openContent);
+    return () => { links.remove(); notifications.remove(); };
+  }, [openContent]);
   useEffect(() => {
     if (session) return;
     setExperience('customer');
     setSelectedShop(null);
     setEditingProfile(false);
     setTab('discover');
+    setContentId(null);
   }, [session]);
 
   if (account.loadingSession) return <LoadingScreen />;
@@ -91,9 +116,9 @@ export default function App() {
       <View style={styles.app}>
         <>
             <View style={styles.screen}>
-              {tab === 'discover' && <Discover onOpen={setSelectedShop} />}
+              {tab === 'discover' && <Discover onOpen={setSelectedShop} onOpenContent={openContent} />}
               {tab === 'loyalty' && <Loyalty />}
-              {tab === 'news' && <News />}
+              {tab === 'news' && <CustomerContentEntry initialContentId={contentId} onInitialContentHandled={() => setContentId(null)} />}
               {tab === 'profile' && (
                 <ProfileScreen
                   displayName={profile?.display_name ?? session.user.email?.split('@')[0] ?? 'Alex'}
@@ -180,7 +205,7 @@ function RoleButton(props: {
   );
 }
 
-function Discover({ onOpen }: { onOpen: (shop: CoffeeShop) => void }) {
+function Discover({ onOpen, onOpenContent }: { onOpen: (shop: CoffeeShop) => void; onOpenContent: (contentId: string) => void }) {
   const [query, setQuery] = useState('');
   const shops = useMemo(
     () => coffeeShops.filter((s) => s.name.toLowerCase().includes(query.toLowerCase())),
@@ -227,7 +252,7 @@ function Discover({ onOpen }: { onOpen: (shop: CoffeeShop) => void }) {
         </View>
       </View>
       <SectionHeader title="Happening locally" action="See all" />
-      <EventCard />
+      <FeaturedEvent onOpen={onOpenContent} />
     </ScrollView>
   );
 }
@@ -295,21 +320,6 @@ function Loyalty() {
           <Ionicons name="chevron-forward" color={C.muted} size={20} />
         </View>
       ))}
-    </ScrollView>
-  );
-}
-
-function News() {
-  return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <Text style={styles.hello}>FROM YOUR SHOPS</Text><Text style={styles.title}>Local stories</Text>
-      <EventCard />
-      <View style={styles.newsCard}>
-        <View style={styles.inline}><View style={styles.newsLogo}><Ionicons name="leaf" color={C.green} size={18} /></View><Text style={styles.menuName}>Willow & Bean</Text></View>
-        <Text style={styles.newsTitle}>Our summer menu has landed</Text>
-        <Text style={styles.description}>Three bright new drinks, locally baked lemon cake, and a very special cold brew.</Text>
-        <Text style={styles.meta}>Yesterday · 4 min read</Text>
-      </View>
     </ScrollView>
   );
 }
@@ -404,15 +414,6 @@ function Quick({ icon, label }: { icon: React.ComponentProps<typeof Ionicons>['n
   return <Pressable style={styles.quick}><View style={styles.quickIcon}><Ionicons name={icon} size={22} color={C.green} /></View><Text style={styles.quickText}>{label}</Text></Pressable>;
 }
 
-function EventCard() {
-  return (
-    <View style={styles.eventCard}>
-      <Image source={{ uri: 'https://images.unsplash.com/photo-1511081692775-05d0f180a065?auto=format&fit=crop&w=900&q=80' }} style={styles.eventImage as any} />
-      <View style={styles.eventBody}><View style={styles.pinned}><Ionicons name="pin" size={11} color={C.orange} /><Text style={styles.pinnedText}>PINNED EVENT</Text></View><Text style={styles.newsTitle}>Latte art evening</Text><Text style={styles.meta}>Friday, 7:00 PM · North Star Coffee</Text></View>
-    </View>
-  );
-}
-
 function Action({ icon, label }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }) {
   return <Pressable style={styles.action}><Ionicons name={icon} size={20} color={C.green} /><Text style={styles.actionText}>{label}</Text></Pressable>;
 }
@@ -488,12 +489,6 @@ const styles = StyleSheet.create({
   stamps: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
   stamp: { width: 27, height: 27, borderRadius: 9, borderWidth: 1, borderColor: C.green, alignItems: 'center', justifyContent: 'center' },
   stampActive: { backgroundColor: C.green },
-  eventCard: { flexDirection: 'row', backgroundColor: C.paper, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
-  eventImage: { width: 110, minHeight: 112 },
-  eventBody: { flex: 1, padding: 14, justifyContent: 'center' },
-  pinned: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  pinnedText: { fontSize: 9, color: C.orange, fontWeight: '800', letterSpacing: 1, marginLeft: 3 },
-  newsTitle: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: C.ink, marginBottom: 5 },
   detailHero: { width: '100%', height: 285 },
   backButton: { position: 'absolute', top: 14, left: 16, width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,253,252,0.94)', alignItems: 'center', justifyContent: 'center' },
   heartButton: { position: 'absolute', top: 14, right: 16, width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,253,252,0.94)', alignItems: 'center', justifyContent: 'center' },
@@ -516,8 +511,6 @@ const styles = StyleSheet.create({
   loyaltyRow: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: C.paper, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: C.line },
   progress: { height: 5, backgroundColor: C.mint, borderRadius: 3, marginTop: 8, overflow: 'hidden' },
   progressFill: { height: 5, backgroundColor: C.green, borderRadius: 3 },
-  newsCard: { marginTop: 13, padding: 18, borderRadius: 18, backgroundColor: C.paper, borderWidth: 1, borderColor: C.line },
-  newsLogo: { width: 34, height: 34, borderRadius: 11, backgroundColor: C.mint, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
   profileCard: { marginTop: 20, alignItems: 'center', backgroundColor: C.paper, padding: 24, borderRadius: 20, borderWidth: 1, borderColor: C.line },
   avatarLarge: { width: 78, height: 78, borderRadius: 27, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarLargeImage: { width: '100%', height: '100%' },

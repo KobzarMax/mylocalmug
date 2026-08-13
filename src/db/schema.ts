@@ -47,6 +47,25 @@ export const businessInvitationStatus = pgEnum('business_invitation_status', [
   'revoked',
   'expired',
 ]);
+export const postKind = pgEnum('post_kind', ['news', 'event']);
+export const eventNotificationJobType = pgEnum('event_notification_job_type', [
+  'reminder',
+  'updated',
+  'cancelled',
+]);
+export const notificationJobStatus = pgEnum('notification_job_status', [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+  'cancelled',
+]);
+export const pushDeliveryStatus = pgEnum('push_delivery_status', [
+  'pending',
+  'ticketed',
+  'delivered',
+  'failed',
+]);
 
 export const profiles = pgTable(
   'profiles',
@@ -154,6 +173,7 @@ export const businessFollowers = pgTable(
     clientId: uuid('client_id')
       .notNull()
       .references(() => profiles.id, { onDelete: 'cascade' }),
+    eventNotificationsEnabled: boolean('event_notifications_enabled').default(true).notNull(),
     joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
@@ -312,20 +332,156 @@ export const menuItems = pgTable(
   }),
 );
 
-export const posts = pgTable('posts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  businessId: uuid('business_id')
-    .notNull()
-    .references(() => businesses.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  body: text('body').notNull(),
-  coverUrl: text('cover_url'),
-  eventStartsAt: timestamp('event_starts_at', { withTimezone: true }),
-  eventEndsAt: timestamp('event_ends_at', { withTimezone: true }),
-  isPinned: boolean('is_pinned').default(false).notNull(),
-  publishedAt: timestamp('published_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const posts = pgTable(
+  'posts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    kind: postKind('kind').default('news').notNull(),
+    title: text('title').notNull(),
+    excerpt: text('excerpt').default('').notNull(),
+    bodyDocument: jsonb('body_document').default({ type: 'doc', content: [] }).notNull(),
+    bodyText: text('body_text').default('').notNull(),
+    coverPath: text('cover_path'),
+    authorDisplayName: text('author_display_name').default('Coffee shop team').notNull(),
+    createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => profiles.id, { onDelete: 'set null' }),
+    eventStartsAt: timestamp('event_starts_at', { withTimezone: true }),
+    eventEndsAt: timestamp('event_ends_at', { withTimezone: true }),
+    eventAllDay: boolean('event_all_day').default(false).notNull(),
+    eventTimezone: text('event_timezone'),
+    eventVenueName: text('event_venue_name'),
+    eventVenueAddress: text('event_venue_address'),
+    eventCancelledAt: timestamp('event_cancelled_at', { withTimezone: true }),
+    eventCancellationReason: text('event_cancellation_reason'),
+    eventNotificationVersion: integer('event_notification_version').default(1).notNull(),
+    isPinned: boolean('is_pinned').default(false).notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    titleCheck: check('posts_title_check', sql`char_length(btrim(${table.title})) between 3 and 140`),
+    excerptCheck: check('posts_excerpt_check', sql`char_length(${table.excerpt}) <= 300`),
+    bodyTextCheck: check('posts_body_text_check', sql`char_length(${table.bodyText}) <= 50000`),
+    eventVersionCheck: check('posts_event_notification_version_check', sql`${table.eventNotificationVersion} > 0`),
+    eventDatesCheck: check(
+      'posts_event_dates_check',
+      sql`(
+        ${table.kind} = 'news'
+        and ${table.eventStartsAt} is null
+        and ${table.eventEndsAt} is null
+        and ${table.eventTimezone} is null
+        and ${table.eventVenueName} is null
+        and ${table.eventVenueAddress} is null
+        and ${table.eventCancelledAt} is null
+      ) or (
+        ${table.kind} = 'event'
+        and ${table.eventStartsAt} is not null
+        and ${table.eventTimezone} is not null
+        and (${table.eventEndsAt} is null or ${table.eventEndsAt} > ${table.eventStartsAt})
+      )`,
+    ),
+  }),
+);
+
+export const postEventReminders = pgTable(
+  'post_event_reminders',
+  {
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => posts.id, { onDelete: 'cascade' }),
+    minutesBefore: integer('minutes_before').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.postId, table.minutesBefore] }),
+    allowedOffsetCheck: check(
+      'post_event_reminders_allowed_offset_check',
+      sql`${table.minutesBefore} in (60, 1440, 10080)`,
+    ),
+  }),
+);
+
+export const pushDevices = pgTable(
+  'push_devices',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    profileId: uuid('profile_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    expoPushToken: text('expo_push_token').notNull(),
+    platform: text('platform').notNull(),
+    enabled: boolean('enabled').default(true).notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenIdx: uniqueIndex('push_devices_expo_push_token_unique').on(table.expoPushToken),
+    platformCheck: check('push_devices_platform_check', sql`${table.platform} in ('ios', 'android')`),
+  }),
+);
+
+export const eventNotificationJobs = pgTable(
+  'event_notification_jobs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => posts.id, { onDelete: 'cascade' }),
+    jobType: eventNotificationJobType('job_type').notNull(),
+    reminderMinutes: integer('reminder_minutes').default(0).notNull(),
+    eventVersion: integer('event_version').notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+    status: notificationJobStatus('status').default('pending').notNull(),
+    attempts: integer('attempts').default(0).notNull(),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+  },
+  (table) => ({
+    jobIdx: uniqueIndex('event_notification_jobs_unique').on(
+      table.postId,
+      table.jobType,
+      table.eventVersion,
+      table.reminderMinutes,
+    ),
+    reminderCheck: check(
+      'event_notification_jobs_reminder_check',
+      sql`(${table.jobType} = 'reminder' and ${table.reminderMinutes} in (60, 1440, 10080))
+        or (${table.jobType} <> 'reminder' and ${table.reminderMinutes} = 0)`,
+    ),
+    attemptsCheck: check('event_notification_jobs_attempts_check', sql`${table.attempts} >= 0`),
+  }),
+);
+
+export const pushDeliveries = pgTable(
+  'push_deliveries',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => eventNotificationJobs.id, { onDelete: 'cascade' }),
+    deviceId: uuid('device_id')
+      .notNull()
+      .references(() => pushDevices.id, { onDelete: 'cascade' }),
+    expoTicketId: text('expo_ticket_id'),
+    status: pushDeliveryStatus('status').default('pending').notNull(),
+    attempts: integer('attempts').default(0).notNull(),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    jobDeviceIdx: uniqueIndex('push_deliveries_job_device_unique').on(table.jobId, table.deviceId),
+    attemptsCheck: check('push_deliveries_attempts_check', sql`${table.attempts} >= 0`),
+  }),
+);
 
 export const rewards = pgTable(
   'rewards',
@@ -451,6 +607,10 @@ export type MenuItem = typeof menuItems.$inferSelect;
 export type NewMenuItem = typeof menuItems.$inferInsert;
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
+export type PostEventReminder = typeof postEventReminders.$inferSelect;
+export type PushDevice = typeof pushDevices.$inferSelect;
+export type EventNotificationJob = typeof eventNotificationJobs.$inferSelect;
+export type PushDelivery = typeof pushDeliveries.$inferSelect;
 export type Reward = typeof rewards.$inferSelect;
 export type NewReward = typeof rewards.$inferInsert;
 export type Review = typeof reviews.$inferSelect;

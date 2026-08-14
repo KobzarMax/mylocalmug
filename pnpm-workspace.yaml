@@ -1,4 +1,6 @@
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - expo-image@57.0.3
 overrides:
   react-dom: 19.2.3

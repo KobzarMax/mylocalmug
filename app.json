@@ -30,7 +30,8 @@
           "writeOnlyCalendarPermission": "Allow Local Mug to add coffee shop events to your calendar."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-image"
     ],
     "ios": {
       "supportsTablet": true

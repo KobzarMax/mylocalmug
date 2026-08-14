@@ -6,13 +6,13 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 
 - A runnable Expo SDK 57 TypeScript app
 - Role selection for customer and business experiences
-- Customer discovery, coffee-shop detail, menu ratings, reward wallet, news, and profile screens
+- Live customer discovery, coffee-shop detail, published menus, news/events, reward wallet, and profile screens
 - Business dashboard with menu, post, reward, and event entry points
 - A Supabase client configured for React Native session persistence
 - Native email confirmation with a persisted pending state, resend cooldown, copied OTP entry, and `localmug://auth/confirm` callback handling
 - An initial SQL migration with profiles, businesses, menus, posts/events, memberships, reviews, and flexible loyalty rewards
 - Drizzle schema and CLI scripts for typed table migrations
-- A starter tRPC router for typed server/API operations
+- Trusted backend operations through Supabase database functions and Edge Functions
 - Row Level Security policies and media buckets
 - iOS profile editing with avatar upload, a 200-character description, confirmed email changes, password changes, and favourite coffee spots
 - Business access applications with draft, review, approval, rejection, and resubmission states
@@ -23,7 +23,7 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 - Business menu management with ordered categories, item CRUD, prices, photos, and availability
 - Business news/event authoring with rich text, drafts, scheduling, publication, pinning, cancellation, and content-scoped media
 - Live customer story feeds, shop following preferences, event push-delivery Edge Functions, notification deep links, and native calendar export
-- Mock data so the product can be previewed before Supabase is connected
+- A 24-hour, read-only customer cache with offline shop, menu, story, event, and disk-cached image access
 
 ## Run locally
 
@@ -46,8 +46,9 @@ To connect Supabase:
 8. Run `supabase/tests/004_menu_management_rls.sql`; it is transactional and rolls back its test records.
 9. Run `pnpm run db:migrate` to apply `drizzle/0004_sticky_the_twelve.sql`, then apply `supabase/migrations/005_news_events.sql`.
 10. Run `supabase/tests/005_news_events_rls.sql`; it is transactional and rolls back its test records.
-11. Put the project URL and publishable/anon key in `.env`.
-12. Restart Expo so the public environment variables are bundled.
+11. Apply `supabase/migrations/007_public_marketplace.sql`, then run `supabase/tests/007_public_marketplace_rls.sql`.
+12. Put the project URL and publishable/anon key in `.env`.
+13. Restart Expo so the public environment variables are bundled.
 
 ### Menu management deployment
 
@@ -142,6 +143,17 @@ pnpm exec expo run:android
 
 The app never contains the service-role key. Edge Functions receive it from the Supabase runtime. Cron requests also require the separate `x-cron-secret`, while delivery functions use idempotent database jobs and Expo receipt processing.
 
+### Customer marketplace and offline reading
+
+1. Apply `supabase/migrations/007_public_marketplace.sql` after migration `006`.
+2. Run `supabase/tests/007_public_marketplace_rls.sql`; it rolls back its fixtures and should finish without an assertion error.
+3. Browse the Discover catalog, open a shop, menu, news post, and event while online.
+4. Close the app, enable airplane mode, and reopen it within 24 hours. Previously viewed customer data and downloaded images remain readable with an offline notice.
+5. Confirm uncached screens show an offline empty state and follow/alert mutations ask the customer to reconnect.
+6. Reconnect and confirm visible stale queries refresh. Sign out and confirm account-scoped followed data is removed.
+
+TanStack Query persists only explicitly marked customer-reading queries to AsyncStorage. Business management, team, applications, profile data, errors, and mutations are never persisted. Infinite feeds retain at most two pages, cache entries expire after 24 hours, and Expo Image uses stable disk-cache keys for previously viewed media. Offline writes are intentionally outside this release.
+
 ## Database workflow
 
 Drizzle is the source of truth for application table shape and TypeScript row types:
@@ -166,16 +178,9 @@ Profile images use the `profile-images` bucket. The bucket only accepts JPEG, PN
 
 That split keeps normal tables typed through Drizzle while preserving Supabase features that Drizzle does not model cleanly.
 
-## Typed API plan
+## Application API boundaries
 
-tRPC files live under `src/server`. The mobile app should call tRPC once an API host exists, but it should not connect directly to Postgres. Good first tRPC endpoints:
-
-- `publishedBusinesses` for customer discovery
-- `joinBusiness` for following a coffee shop
-- Business menu/news/reward mutations
-- Secure loyalty stamp issuing through server-side checks
-
-Profile data and favourites have typed tRPC procedures under `profile.*`. Email and password changes intentionally go straight through Supabase Auth so credentials never pass through the application API. The tRPC context validates the Supabase bearer token before exposing a user ID.
+Mobile features call Supabase through their feature-scoped `api.ts` modules. Authentication and media use Supabase Auth and Storage, tenant mutations use RLS-protected database functions, and operations requiring service credentials run in Supabase Edge Functions. The mobile app never connects directly to Postgres or receives service-role credentials.
 
 ## Product architecture
 

@@ -1,6 +1,6 @@
 # Local Mug implementation plan
 
-Last updated: 13 August 2026
+Last updated: 14 August 2026
 
 ## Product goal
 
@@ -15,7 +15,8 @@ Local Mug connects independent coffee shops with local customers. Customers disc
 - Supabase client configured for React Native.
 - Drizzle schema and numbered migrations.
 - Supabase RLS, database functions, triggers, and Storage policies.
-- Starter tRPC server structure; no deployed tRPC API host yet.
+- Feature-scoped Supabase APIs, trusted database functions, and deployed Edge Functions; no separate application API host.
+- TanStack Query with explicit AsyncStorage persistence, NetInfo reconnect handling, and Expo Image disk caching for customer reading data.
 - Git repository initialized with a baseline commit and SSH remote.
 - TypeScript, Drizzle consistency, Expo configuration, and iOS production bundling pass.
 
@@ -44,11 +45,11 @@ Supabase currently requires custom SMTP before it allows this project to edit th
 Implemented UI:
 
 - Authentication and profile loading.
-- Customer discovery and coffee-shop details.
+- Live published-business discovery, search, coffee-shop details, opening hours, rating aggregates, and available menus.
 - Loyalty wallet, news, and customer profile screens.
 - Profile editing, avatar upload, email/password changes, and favourite coffee shops.
 
-Current limitation: the News tab is now live-backed, while discovery, general shop details, loyalty, and dashboard values remain primarily mock data. They are not yet a complete live marketplace.
+Customer marketplace/offline status: **CODE DONE; MIGRATION AND DEVICE ACCEPTANCE PENDING**. Published shop catalog/detail/menu and News/Event queries are cached selectively for 24 hours, account-scoped followed data is purged across sessions, remote mutations are disabled offline, and previously downloaded images use disk caching. Loyalty, rewards, and dashboard values remain mock-backed and outside this slice.
 
 ### Business access and applications
 
@@ -212,6 +213,11 @@ Applied successfully:
 - Edge Functions `dispatch-event-notifications` and `check-push-receipts`.
 - Vault secrets `project_url`, `anon_key`, and `event_notification_cron_secret`.
 
+Ready to apply:
+
+- Supabase migration `007_public_marketplace.sql`.
+- Transactional verification script `supabase/tests/007_public_marketplace_rls.sql`.
+
 News/events verification pending:
 
 - Successful rerun of the corrected transactional script `supabase/tests/005_news_events_rls.sql`.
@@ -241,15 +247,25 @@ on conflict do nothing;
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
 - Menu-management RLS and live role/device acceptance are not yet recorded.
-- Customer menu rendering, rewards, payments, and analytics dashboard actions remain incomplete.
+- Rewards, loyalty, payments, and analytics dashboard actions remain incomplete.
 - News/events backend deployment is complete; RLS rerun, Cron execution evidence, Android FCM, paused iOS APNs registration, and physical-device push/calendar acceptance remain pending.
 - Payments and terminals are not implemented.
-- The customer marketplace remains mostly mock-backed.
+- Offline customer data is read-only by design; queued writes and conflict resolution are not implemented.
 - The invitation RLS test exists as a transactional SQL script, but there is no automated test runner for database functions, hooks, or UI workflows.
 
 ## Next implementation steps
 
-### 1. Finish news/events acceptance
+### 1. Deploy and accept the live offline marketplace
+
+Priority: immediate.
+
+- Apply Supabase `007`, then run `007_public_marketplace_rls.sql` and record success.
+- Verify published/unpublished shops, available/unavailable menu visibility, catalog search, shop details, hours, ratings, menus, and shop stories.
+- Browse representative customer data and images online, restart in airplane mode, and verify cached/uncached states, disabled mutations, reconnect refresh, account cleanup, and 24-hour expiry.
+
+Definition of done: safe live customer reading replaces the mock marketplace, persisted data and disk-cached images survive a restart offline, mutations remain online-only, and RLS blocks unpublished or unavailable records.
+
+### 2. Finish news/events acceptance
 
 Priority: immediate.
 
@@ -261,7 +277,7 @@ Priority: immediate.
 
 Definition of done: database tests pass, permitted roles manage the complete lifecycle, public feeds expose only due published content, push jobs deliver idempotently, and a customer can intentionally add an event to the native calendar.
 
-### 2. Verify menu management
+### 3. Verify menu management
 
 Priority: immediate.
 
@@ -273,7 +289,7 @@ Priority: immediate.
 
 Definition of done: migration and RLS tests pass, permitted business roles can manage a complete menu, denied roles cannot mutate it, media cleanup works, and only published menus are customer-readable.
 
-### 3. Verify the live business application flow
+### 4. Verify the live business application flow
 
 Priority: immediately after menu verification.
 
@@ -289,7 +305,7 @@ Priority: immediately after menu verification.
 
 Definition of done: the complete application-to-published-profile workflow succeeds on a physical iOS device and all negative RLS checks fail safely.
 
-### 4. Routing and workspace selection
+### 5. Routing and workspace selection
 
 - Introduce Expo Router using SDK 57 patterns.
 - Add protected authentication, customer, application, admin-review, workspace, and business route groups.
@@ -297,7 +313,7 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Preserve RLS as the authorization boundary.
 - Add route-level loading, denied, missing-workspace, and suspended states.
 
-### 5. Finish business profile quality
+### 6. Finish business profile quality
 
 - Add special opening hours and holiday closures.
 - Add multiple business locations.
@@ -307,12 +323,6 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Define required completion rules before publishing.
 - Add customer preview before publication.
 - Add accessibility, offline, retry, and device-size QA.
-
-### 6. Customer menu integration
-
-- Replace mock shop menu data with published business/category/item queries.
-- Preserve category order and hide unavailable items from order-focused views.
-- Add customer loading, empty, retry, and unpublished states.
 
 ### 7. Rewards and loyalty
 

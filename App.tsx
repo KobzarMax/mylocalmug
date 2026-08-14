@@ -1,5 +1,5 @@
 import 'react-native-url-polyfill/auto';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,13 +11,11 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CoffeeShop, UserRole } from './src/types';
-import { coffeeShops } from './src/data/mockData';
+import { UserRole } from './src/types';
 import { EditProfileScreen } from './src/components/EditProfileScreen';
 import { BusinessPortal } from './src/features/business/BusinessPortal';
 import { getProfileAvatarUrl } from './src/lib/profileImage';
@@ -25,9 +23,10 @@ import { AuthEntry } from './src/features/auth/AuthEntry';
 import { useAuthenticatedAccount } from './src/features/auth/sessionHooks';
 import { AccountLoadError } from './src/features/auth/components/AccountLoadError';
 import { CustomerContentEntry } from './src/features/content/CustomerContentEntry';
-import { FeaturedEvent } from './src/features/content/components/FeaturedEvent';
 import { subscribeToContentNotifications } from './src/features/content/device';
 import { usePushDeviceRefresh } from './src/features/content/hooks';
+import { MarketplaceEntry } from './src/features/marketplace/MarketplaceEntry';
+import { useAccountCacheBoundary } from './src/lib/query/QueryProvider';
 
 const C = {
   ink: '#241A16',
@@ -48,13 +47,12 @@ export default function App() {
   const { session, profile } = account;
   const [experience, setExperience] = useState<Experience>('customer');
   const [tab, setTab] = useState<Tab>('discover');
-  const [selectedShop, setSelectedShop] = useState<CoffeeShop | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [contentId, setContentId] = useState<string | null>(null);
   usePushDeviceRefresh(Boolean(session));
+  useAccountCacheBoundary(session?.user.id ?? null);
   const openContent = useCallback((id: string) => {
     setExperience('customer');
-    setSelectedShop(null);
     setEditingProfile(false);
     setTab('news');
     setContentId(id);
@@ -72,7 +70,6 @@ export default function App() {
   useEffect(() => {
     if (session) return;
     setExperience('customer');
-    setSelectedShop(null);
     setEditingProfile(false);
     setTab('discover');
     setContentId(null);
@@ -106,19 +103,15 @@ export default function App() {
       />
     );
   }
-  if (selectedShop) {
-    return <ShopDetail shop={selectedShop} onBack={() => setSelectedShop(null)} />;
-  }
-
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.cream} />
       <View style={styles.app}>
         <>
             <View style={styles.screen}>
-              {tab === 'discover' && <Discover onOpen={setSelectedShop} onOpenContent={openContent} />}
+              {tab === 'discover' && <MarketplaceEntry accountId={session.user.id} displayName={profile.display_name} onOpenContent={openContent} />}
               {tab === 'loyalty' && <Loyalty />}
-              {tab === 'news' && <CustomerContentEntry initialContentId={contentId} onInitialContentHandled={() => setContentId(null)} />}
+              {tab === 'news' && <CustomerContentEntry accountId={session.user.id} initialContentId={contentId} onInitialContentHandled={() => setContentId(null)} />}
               {tab === 'profile' && (
                 <ProfileScreen
                   displayName={profile?.display_name ?? session.user.email?.split('@')[0] ?? 'Alex'}
@@ -202,105 +195,6 @@ function RoleButton(props: {
       </View>
       <Ionicons name="arrow-forward" size={20} color={C.ink} />
     </Pressable>
-  );
-}
-
-function Discover({ onOpen, onOpenContent }: { onOpen: (shop: CoffeeShop) => void; onOpenContent: (contentId: string) => void }) {
-  const [query, setQuery] = useState('');
-  const shops = useMemo(
-    () => coffeeShops.filter((s) => s.name.toLowerCase().includes(query.toLowerCase())),
-    [query],
-  );
-
-  return (
-    <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      <View style={styles.topRow}>
-        <View><Text style={styles.hello}>Good morning, Alex</Text><Text style={styles.title}>Find your local cup</Text></View>
-        <View style={styles.avatar}><Text style={styles.avatarText}>A</Text></View>
-      </View>
-      <View style={styles.search}>
-        <Ionicons name="search" size={20} color={C.muted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Coffee shops, drinks, food…"
-          placeholderTextColor="#9B918A"
-          style={styles.searchInput}
-        />
-        <Ionicons name="options-outline" size={20} color={C.green} />
-      </View>
-      <View style={styles.location}><Ionicons name="location" size={14} color={C.orange} /><Text style={styles.locationText}>Near Shoreditch, London</Text></View>
-
-      <SectionHeader title="Nearby favourites" action="Map view" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
-        {shops.map((shop) => <ShopCard key={shop.id} shop={shop} onPress={() => onOpen(shop)} />)}
-      </ScrollView>
-
-      <SectionHeader title="Your next reward" action="View wallet" />
-      <View style={styles.rewardCard}>
-        <View style={styles.rewardTop}>
-          <View style={styles.miniLogo}><Ionicons name="leaf" color={C.paper} size={20} /></View>
-          <View style={{ flex: 1 }}><Text style={styles.rewardShop}>Willow & Bean</Text><Text style={styles.rewardMeta}>2 more cups until a free drink</Text></View>
-          <Text style={styles.rewardCount}>8 / 10</Text>
-        </View>
-        <View style={styles.stamps}>
-          {Array.from({ length: 10 }).map((_, i) => (
-            <View key={i} style={[styles.stamp, i < 8 && styles.stampActive]}>
-              <Ionicons name="cafe" size={14} color={i < 8 ? C.paper : C.green} />
-            </View>
-          ))}
-        </View>
-      </View>
-      <SectionHeader title="Happening locally" action="See all" />
-      <FeaturedEvent onOpen={onOpenContent} />
-    </ScrollView>
-  );
-}
-
-function ShopCard({ shop, onPress }: { shop: CoffeeShop; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.shopCard, pressed && styles.pressed]}>
-      <Image source={{ uri: shop.image }} style={styles.shopImage as any} />
-      <View style={styles.distance}><Text style={styles.distanceText}>{shop.distance}</Text></View>
-      <View style={styles.shopBody}>
-        <Text style={styles.shopName}>{shop.name}</Text>
-        <View style={styles.inline}><Ionicons name="star" color={C.gold} size={14} /><Text style={styles.rating}>{shop.rating}</Text><Text style={styles.dot}> · </Text><Text style={styles.meta}>{shop.category}</Text></View>
-        <Text style={styles.meta} numberOfLines={1}>{shop.address}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function ShopDetail({ shop, onBack }: { shop: CoffeeShop; onBack: () => void }) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View>
-          <Image source={{ uri: shop.image }} style={styles.detailHero as any} />
-          <Pressable style={styles.backButton} onPress={onBack}><Ionicons name="arrow-back" size={22} color={C.ink} /></Pressable>
-          <Pressable style={styles.heartButton}><Ionicons name="heart-outline" size={22} color={C.ink} /></Pressable>
-        </View>
-        <View style={styles.detailBody}>
-          <Text style={styles.detailTitle}>{shop.name}</Text>
-          <View style={styles.inline}><Ionicons name="star" color={C.gold} size={16} /><Text style={styles.rating}>{shop.rating} ({shop.reviewCount})</Text><Text style={styles.dot}> · </Text><Text style={styles.meta}>{shop.distance}</Text></View>
-          <Text style={styles.description}>{shop.description}</Text>
-          <View style={styles.actions}>
-            <Action icon="navigate-outline" label="Directions" />
-            <Action icon="logo-instagram" label="Instagram" />
-            <Action icon="share-outline" label="Share" />
-          </View>
-          <Pressable style={styles.primaryButton}><Ionicons name="person-add-outline" size={18} color={C.paper} /><Text style={styles.primaryText}>Join this coffee community</Text></Pressable>
-          <SectionHeader title="Popular menu" action="Full menu" />
-          {shop.menu.map((item) => (
-            <View key={item.id} style={styles.menuRow}>
-              <Image source={{ uri: item.image }} style={styles.menuImage as any} />
-              <View style={{ flex: 1 }}><Text style={styles.menuName}>{item.name}</Text><Text style={styles.meta}>{item.description}</Text><View style={styles.inline}><Ionicons name="star" size={13} color={C.gold} /><Text style={styles.meta}> {item.rating}</Text></View></View>
-              <Text style={styles.price}>£{item.price.toFixed(2)}</Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
   );
 }
 
@@ -412,10 +306,6 @@ function Metric({ value, label }: { value: string; label: string }) {
 
 function Quick({ icon, label }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }) {
   return <Pressable style={styles.quick}><View style={styles.quickIcon}><Ionicons name={icon} size={22} color={C.green} /></View><Text style={styles.quickText}>{label}</Text></Pressable>;
-}
-
-function Action({ icon, label }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }) {
-  return <Pressable style={styles.action}><Ionicons name={icon} size={20} color={C.green} /><Text style={styles.actionText}>{label}</Text></Pressable>;
 }
 
 function SectionHeader({ title, action }: { title: string; action?: string }) {

@@ -3,6 +3,7 @@ import {
   ContentCursor,
   ContentEditorInput,
   ContentItem,
+  ContentDetail,
   ContentKind,
   ContentPage,
   FollowState,
@@ -99,13 +100,11 @@ export async function getPublicContentPage(options: {
   if (result.error) throw result.error;
   const rows = (result.data ?? []) as PublicContentRow[];
   const covers = await getSignedCoverUrls(rows.map((row) => row.cover_path));
-  const items = rows.map((row) => mapContent(
-    row,
-    row.reminder_minutes ?? [],
-    covers,
-    row.business_name,
-    row.business_logo_url,
-  ));
+  const items = rows.map((row) => {
+    const item = mapContent(row, row.reminder_minutes ?? [], covers, row.business_name, row.business_logo_url);
+    const { bodyDocument: _document, bodyText, ...summary } = item;
+    return { ...summary, readingMinutes: readingMinutes(bodyText) };
+  });
   const last = items.at(-1);
   return {
     items,
@@ -113,6 +112,25 @@ export async function getPublicContentPage(options: {
       ? { pinned: last.isPinned && last.kind === 'event' && Boolean(last.eventStartsAt && new Date(last.eventStartsAt) > new Date()), publishedAt: last.publishedAt, id: last.id }
       : null,
   };
+}
+
+export async function getPublicContentDetail(postId: string): Promise<ContentDetail | null> {
+  const result = await supabase.rpc('get_public_content_feed', {
+    target_business_id: null,
+    target_post_id: postId,
+    requested_kind: null,
+    followed_only: false,
+    cursor_pinned: null,
+    cursor_published_at: null,
+    cursor_id: null,
+    page_size: 1,
+  });
+  if (result.error) throw result.error;
+  const row = (result.data?.[0] ?? null) as PublicContentRow | null;
+  if (!row) return null;
+  const covers = await getSignedCoverUrls([row.cover_path]);
+  const item = mapContent(row, row.reminder_minutes ?? [], covers, row.business_name, row.business_logo_url);
+  return { ...item, readingMinutes: readingMinutes(item.bodyText) };
 }
 
 export async function getFollowState(businessId: string): Promise<FollowState> {
@@ -211,4 +229,8 @@ function mapContent(row: ContentRow, reminders: number[], covers: Map<string, st
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
+}
+
+function readingMinutes(body: string) {
+  return Math.max(1, Math.ceil(body.trim().split(/\s+/).filter(Boolean).length / 200));
 }

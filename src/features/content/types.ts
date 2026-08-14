@@ -52,8 +52,10 @@ export type ContentItem = ContentEditorInput & {
   updatedAt: string;
 };
 
-export type ContentSummary = ContentItem;
-export type ContentDetail = ContentItem;
+export type ContentSummary = Omit<ContentItem, 'bodyDocument' | 'bodyText'> & {
+  readingMinutes: number;
+};
+export type ContentDetail = ContentItem & { readingMinutes: number };
 export type ContentCursor = {
   pinned: boolean;
   publishedAt: string;
@@ -76,4 +78,3 @@ export const publicationStateOf = (item: Pick<ContentItem, 'publishedAt' | 'arch
   if (!item.publishedAt) return 'draft';
   return new Date(item.publishedAt).getTime() > Date.now() ? 'scheduled' : 'published';
 };
-

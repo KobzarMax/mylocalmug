@@ -17,7 +17,9 @@ export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, o
     { icon: 'people-outline', label: 'Team', permission: 'team.read', action: onOpenTeam },
     { icon: 'card-outline', label: 'Payments', permission: 'payments.read', action: onOpenPayments },
   ];
-  const actions = allActions.filter((item) => hasPermission(role, item.permission));
+  const actions = allActions.filter((item) => item.label === 'Payments'
+    ? hasPermission(role, 'payments.read') || hasPermission(role, 'payments.charge')
+    : hasPermission(role, item.permission));
   if (onReviewApplications) actions.push({ icon: 'shield-checkmark-outline', label: 'Application reviews', permission: 'business.profile.write', action: onReviewApplications });
 
   return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.scroll}>

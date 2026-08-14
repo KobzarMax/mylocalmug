@@ -9,6 +9,8 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "9.1.0",
     "@react-native-community/netinfo": "12.0.1",
+    "@stripe/stripe-react-native": "0.64.0",
+    "@stripe/stripe-terminal-react-native": "0.0.1-beta.32",
     "@supabase/supabase-js": "^2.110.8",
     "@tanstack/query-async-storage-persister": "^5.101.4",
     "@tanstack/react-query": "^5.101.4",
@@ -23,8 +25,10 @@
     "expo-image-picker": "~57.0.7",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.5",
+    "expo-location": "~57.0.10",
     "expo-notifications": "~57.0.10",
     "expo-status-bar": "~57.0.1",
+    "expo-web-browser": "~57.0.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.0",
@@ -52,7 +56,8 @@
     "db:studio": "drizzle-kit studio",
     "test:content": "tsx scripts/content-validation.test.ts && tsx scripts/push-delivery.test.ts",
     "test:offline": "tsx scripts/offline-cache.test.ts",
-    "test:legal": "tsx scripts/legal-validation.test.ts"
+    "test:legal": "tsx scripts/legal-validation.test.ts",
+    "test:payments": "tsx scripts/payment-validation.test.ts"
   },
   "private": true
 }

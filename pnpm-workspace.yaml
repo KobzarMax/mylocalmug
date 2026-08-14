@@ -1,6 +1,8 @@
 allowBuilds:
+  '@stripe/stripe-terminal-react-native': true
   esbuild: true
 minimumReleaseAgeExclude:
   - expo-image@57.0.3
+  - expo-location@57.0.10
 overrides:
   react-dom: 19.2.3

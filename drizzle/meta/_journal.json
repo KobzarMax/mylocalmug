@@ -43,6 +43,13 @@
       "when": 1786746514219,
       "tag": "0005_uk_legal_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786747898433,
+      "tag": "0006_open_joystick",
+      "breakpoints": true
     }
   ]
 }

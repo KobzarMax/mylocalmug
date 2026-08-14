@@ -4,6 +4,7 @@ import {
   check,
   doublePrecision,
   integer,
+  index,
   jsonb,
   numeric,
   pgEnum,
@@ -79,6 +80,16 @@ export const pushDeliveryStatus = pgEnum('push_delivery_status', [
   'delivered',
   'failed',
 ]);
+export const paymentProvider = pgEnum('payment_provider', ['stripe', 'paypal']);
+export const paymentConnectionStatus = pgEnum('payment_connection_status', ['not_started', 'onboarding', 'restricted', 'ready', 'disabled', 'revoked']);
+export const paymentJobType = pgEnum('payment_job_type', ['expire_order', 'refund', 'reconcile']);
+export const paymentJobStatus = pgEnum('payment_job_status', ['pending', 'processing', 'completed', 'failed', 'cancelled']);
+export const orderChannel = pgEnum('order_channel', ['customer', 'till']);
+export const orderStatus = pgEnum('order_status', ['awaiting_payment', 'needs_confirmation', 'accepted', 'preparing', 'ready', 'completed', 'cancelled', 'refund_pending', 'refunded']);
+export const orderPaymentStatus = pgEnum('order_payment_status', ['unpaid', 'processing', 'paid', 'refund_pending', 'partially_refunded', 'refunded', 'failed']);
+export const paymentMethod = pgEnum('payment_method', ['card', 'apple_pay', 'google_pay', 'paypal', 'terminal_card']);
+export const paymentStatus = pgEnum('payment_status', ['created', 'requires_action', 'processing', 'succeeded', 'failed', 'cancelled', 'partially_refunded', 'refunded']);
+export const refundStatus = pgEnum('refund_status', ['pending', 'processing', 'succeeded', 'failed', 'cancelled']);
 
 export const profiles = pgTable(
   'profiles',
@@ -413,6 +424,160 @@ export const menuItems = pgTable(
   }),
 );
 
+export const paymentConnections = pgTable('payment_connections', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  provider: paymentProvider('provider').notNull(),
+  providerAccountId: text('provider_account_id'),
+  status: paymentConnectionStatus('status').default('not_started').notNull(),
+  chargesEnabled: boolean('charges_enabled').default(false).notNull(),
+  payoutsEnabled: boolean('payouts_enabled').default(false).notNull(),
+  requirements: jsonb('requirements').default({}).notNull(),
+  disabledAt: timestamp('disabled_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ providerUnique: uniqueIndex('payment_connections_business_provider_unique').on(table.businessId, table.provider) }));
+
+export const paymentWebhookEvents = pgTable('payment_webhook_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  provider: paymentProvider('provider').notNull(),
+  providerEventId: text('provider_event_id').notNull(),
+  providerAccountId: text('provider_account_id'),
+  eventType: text('event_type').notNull(),
+  state: text('state').default('pending').notNull(),
+  attempts: integer('attempts').default(0).notNull(),
+  lastError: text('last_error'),
+  payload: jsonb('payload').default({}).notNull(),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ providerEventUnique: uniqueIndex('payment_webhook_events_provider_event_unique').on(table.provider, table.providerEventId) }));
+
+export const paymentReturnStates = pgTable('payment_return_states', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  profileId: uuid('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  provider: paymentProvider('provider').notNull(),
+  purpose: text('purpose').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  orderId: uuid('order_id'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ tokenUnique: uniqueIndex('payment_return_states_token_unique').on(table.tokenHash) }));
+
+export const orders = pgTable('orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'restrict' }),
+  locationId: uuid('location_id').notNull().references(() => businessLocations.id, { onDelete: 'restrict' }),
+  customerId: uuid('customer_id').references(() => profiles.id, { onDelete: 'set null' }),
+  createdBy: uuid('created_by').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  channel: orderChannel('channel').notNull(),
+  status: orderStatus('status').default('awaiting_payment').notNull(),
+  paymentStatus: orderPaymentStatus('payment_status').default('unpaid').notNull(),
+  currency: text('currency').default('GBP').notNull(),
+  subtotalPence: integer('subtotal_pence').notNull(),
+  totalPence: integer('total_pence').notNull(),
+  refundedPence: integer('refunded_pence').default(0).notNull(),
+  confirmationDeadline: timestamp('confirmation_deadline', { withTimezone: true }),
+  cancellationReason: text('cancellation_reason'),
+  idempotencyKey: text('idempotency_key').notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  creatorIdempotencyUnique: uniqueIndex('orders_creator_idempotency_unique').on(table.createdBy, table.idempotencyKey),
+  businessStateIdx: index('orders_business_state_idx').on(table.businessId, table.status, table.createdAt),
+  totalsCheck: check('orders_totals_check', sql`${table.currency} = 'GBP' and ${table.subtotalPence} >= 0 and ${table.totalPence} = ${table.subtotalPence} and ${table.refundedPence} between 0 and ${table.totalPence}`),
+  channelOwnerCheck: check('orders_channel_owner_check', sql`(${table.channel} = 'customer' and ${table.customerId} = ${table.createdBy}) or (${table.channel} = 'till' and ${table.customerId} is null)`),
+}));
+
+export const orderItems = pgTable('order_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  menuItemId: uuid('menu_item_id').references(() => menuItems.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  quantity: integer('quantity').notNull(),
+  unitPricePence: integer('unit_price_pence').notNull(),
+  lineTotalPence: integer('line_total_pence').notNull(),
+}, (table) => ({ quantityCheck: check('order_items_quantity_check', sql`${table.quantity} between 1 and 99`), amountCheck: check('order_items_amount_check', sql`${table.unitPricePence} >= 0 and ${table.lineTotalPence} = ${table.unitPricePence} * ${table.quantity}`) }));
+
+export const paymentAttempts = pgTable('payment_attempts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+  provider: paymentProvider('provider').notNull(),
+  method: paymentMethod('method').notNull(),
+  amountPence: integer('amount_pence').notNull(),
+  currency: text('currency').default('GBP').notNull(),
+  status: paymentStatus('status').default('created').notNull(),
+  providerIntentId: text('provider_intent_id'),
+  providerOrderId: text('provider_order_id'),
+  providerCaptureId: text('provider_capture_id'),
+  failureCode: text('failure_code'),
+  failureMessage: text('failure_message'),
+  idempotencyKey: text('idempotency_key').notNull(),
+  succeededAt: timestamp('succeeded_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ idempotencyUnique: uniqueIndex('payment_attempts_idempotency_unique').on(table.orderId, table.idempotencyKey), providerIntentUnique: uniqueIndex('payment_attempts_provider_intent_unique').on(table.provider, table.providerIntentId), amountCheck: check('payment_attempts_amount_check', sql`${table.currency} = 'GBP' and ${table.amountPence} > 0`) }));
+
+export const paymentRefunds = pgTable('payment_refunds', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+  paymentAttemptId: uuid('payment_attempt_id').notNull().references(() => paymentAttempts.id, { onDelete: 'restrict' }),
+  amountPence: integer('amount_pence').notNull(),
+  reason: text('reason').notNull(),
+  requestedBy: uuid('requested_by').references(() => profiles.id, { onDelete: 'set null' }),
+  providerRefundId: text('provider_refund_id'),
+  status: refundStatus('status').default('pending').notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  failureMessage: text('failure_message'),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ idempotencyUnique: uniqueIndex('payment_refunds_attempt_idempotency_unique').on(table.paymentAttemptId, table.idempotencyKey), amountCheck: check('payment_refunds_amount_check', sql`${table.amountPence} > 0`), reasonCheck: check('payment_refunds_reason_check', sql`char_length(btrim(${table.reason})) between 3 and 500`) }));
+
+export const paymentJobs = pgTable('payment_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  type: paymentJobType('type').notNull(),
+  orderId: uuid('order_id').references(() => orders.id, { onDelete: 'cascade' }),
+  refundId: uuid('refund_id').references(() => paymentRefunds.id, { onDelete: 'cascade' }),
+  status: paymentJobStatus('status').default('pending').notNull(),
+  runAt: timestamp('run_at', { withTimezone: true }).notNull(),
+  leaseUntil: timestamp('lease_until', { withTimezone: true }),
+  attempts: integer('attempts').default(0).notNull(),
+  lastError: text('last_error'),
+  idempotencyKey: text('idempotency_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ idempotencyUnique: uniqueIndex('payment_jobs_idempotency_unique').on(table.idempotencyKey), dueIdx: index('payment_jobs_due_idx').on(table.status, table.runAt) }));
+
+export const terminalLocations = pgTable('terminal_locations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  businessLocationId: uuid('business_location_id').notNull().references(() => businessLocations.id, { onDelete: 'cascade' }),
+  providerLocationId: text('provider_location_id').notNull(),
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ locationUnique: uniqueIndex('terminal_locations_business_location_unique').on(table.businessId, table.businessLocationId), providerUnique: uniqueIndex('terminal_locations_provider_unique').on(table.providerLocationId) }));
+
+export const terminalReaders = pgTable('terminal_readers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  terminalLocationId: uuid('terminal_location_id').notNull().references(() => terminalLocations.id, { onDelete: 'cascade' }),
+  providerReaderId: text('provider_reader_id').notNull(),
+  label: text('label').notNull(),
+  deviceType: text('device_type').notNull(),
+  registrationCodeLast4: text('registration_code_last4'),
+  status: text('status').default('offline').notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ readerUnique: uniqueIndex('terminal_readers_provider_unique').on(table.providerReaderId) }));
+
 export const posts = pgTable(
   'posts',
   {
@@ -686,6 +851,13 @@ export type BusinessAuditLog = typeof businessAuditLogs.$inferSelect;
 export type BusinessLocation = typeof businessLocations.$inferSelect;
 export type MenuItem = typeof menuItems.$inferSelect;
 export type NewMenuItem = typeof menuItems.$inferInsert;
+export type PaymentConnection = typeof paymentConnections.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type PaymentAttempt = typeof paymentAttempts.$inferSelect;
+export type PaymentRefund = typeof paymentRefunds.$inferSelect;
+export type TerminalLocation = typeof terminalLocations.$inferSelect;
+export type TerminalReader = typeof terminalReaders.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
 export type PostEventReminder = typeof postEventReminders.$inferSelect;

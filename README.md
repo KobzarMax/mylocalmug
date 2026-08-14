@@ -169,6 +169,20 @@ TanStack Query persists only explicitly marked customer-reading queries to Async
 
 Local Mug stores ordinary UK business identity details only. It does not store UTRs, bank details, personal identity documents, directors, beneficial owners, dates of birth, National Insurance numbers, or future provider-onboarding answers. The current checks validate format and owner approval; they do not claim Companies House, HMRC, Stripe, or PayPal verification.
 
+### Payments deployment
+
+1. Apply Drizzle migration `0006_open_joystick.sql`, then Supabase migration `009_payments_orders.sql`.
+2. Run `supabase/tests/009_payments_orders_rls.sql` in the SQL editor; it is transactional and rolls back its fixtures.
+3. Deploy `payments-api` with JWT verification enabled. Deploy `stripe-webhook`, `paypal-webhook`, `payment-return`, and `process-payment-jobs` without Supabase JWT verification; those endpoints perform their own signature/state/cron authentication.
+4. Configure Edge Function secrets: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_PARTNER_MERCHANT_ID`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENVIRONMENT`, `PAYMENT_RETURN_URL`, `PAYMENT_CRON_SECRET`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+5. Set `PAYMENT_RETURN_URL` to the public HTTPS URL of `payment-return`. Register the Stripe Connect webhook and PayPal webhook against their respective functions.
+6. Schedule `process-payment-jobs` every minute using Supabase Cron/Vault and send `x-cron-secret` with the configured secret.
+7. Create a new development build. Stripe Terminal, Apple Pay, and Google Pay cannot be accepted in Expo Go.
+
+Provider secrets never enter Expo or application tables. Stripe uses connected-account direct charges with no Local Mug application fee. PayPal is shown only for ready sellers. Customer payments are captured immediately, shops receive ten minutes to confirm, and rejection/expiry creates an idempotent full-refund job.
+
+Pending external gates are PayPal multiparty approval/live credentials, Apple Developer Merchant ID and Apple Pay certificate, Google Pay production acceptance, Stripe Connect live review, and physical WisePad 3 acceptance.
+
 ## Database workflow
 
 Drizzle is the source of truth for application table shape and TypeScript row types:

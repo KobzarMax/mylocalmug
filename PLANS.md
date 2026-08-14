@@ -1,6 +1,6 @@
 # Local Mug implementation plan
 
-Last updated: 14 August 2026
+Last updated: 15 August 2026
 
 ## Product goal
 
@@ -118,6 +118,21 @@ Implementation status: **CODE DONE; MIGRATIONS AND LIVE ACCEPTANCE PENDING**.
 - Business approvals seed a legal draft; existing businesses are backfilled from approved applications when safe.
 - No KYC documents, bank data, UTRs, directors, beneficial owners, identity details, or provider answers are stored.
 - Drizzle `0005`, Supabase `008`, Zod tests, and transactional RLS/lifecycle tests are ready.
+
+### Payments, till, and customer checkout
+
+Implementation status: **CODE COMPLETE; MIGRATION, PROVIDER DEPLOYMENT, AND SANDBOX/DEVICE ACCEPTANCE PENDING**.
+
+- UK Stripe Connect direct-charge onboarding and optional PayPal seller referrals behind approved legal profiles.
+- Provider connections, verified/idempotent webhook ledger, browser-return states, leased retry jobs, and normalized provider status.
+- Server-priced GBP orders with immutable menu snapshots, customer/till channels, payment attempts, refunds, Terminal locations, and readers.
+- Owner/admin provider setup; finance transaction/refund access without provider connection; manager/barista till and preparation access without refunds.
+- Customer online-only ASAP pickup basket with PaymentSheet card/Apple Pay/Google Pay and optional hosted PayPal checkout.
+- Ten-minute shop confirmation, staff accept/reject/preparing/ready/completed flow, and idempotent rejection/timeout refunds.
+- Stripe Terminal simulator and WisePad 3 Bluetooth workflow with interruption-safe payment recovery boundaries.
+- Drizzle `0006`, Supabase `009`, payment validation tests, transactional RLS tests, and five payment Edge Functions.
+
+Next actions: apply both migrations, run the `009` SQL test, deploy/configure the payment functions and Cron, complete Stripe/PayPal sandbox acceptance, then run a physical development-build test. PayPal live approval, Apple Merchant credentials, Google Pay production approval, and WisePad 3 remain explicit release gates.
 
 ### Menu management
 

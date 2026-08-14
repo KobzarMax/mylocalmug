@@ -31,7 +31,29 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-image"
+      "expo-image",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.kobzarmax.localmug",
+          "enableGooglePay": true
+        }
+      ],
+      [
+        "@stripe/stripe-terminal-react-native",
+        {
+          "bluetoothBackgroundMode": true,
+          "locationWhenInUsePermission": "Allow Local Mug to confirm where an in-person payment is accepted.",
+          "bluetoothPeripheralPermission": "Allow Local Mug to connect to supported card readers.",
+          "bluetoothAlwaysUsagePermission": "Allow Local Mug to keep a supported card reader connected."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Local Mug to confirm where an in-person payment is accepted."
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true
@@ -46,7 +68,10 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN"
       ],
       "package": "com.kobzarmax.localmug",
       "googleServicesFile": "./google-services.json"

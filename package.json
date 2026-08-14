@@ -37,6 +37,7 @@
     "@types/react": "~19.2.2",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "postgres": "^3.4.9",
     "tsx": "^4.23.1",
     "typescript": "~6.0.3"
   },
@@ -50,7 +51,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test:content": "tsx scripts/content-validation.test.ts && tsx scripts/push-delivery.test.ts",
-    "test:offline": "tsx scripts/offline-cache.test.ts"
+    "test:offline": "tsx scripts/offline-cache.test.ts",
+    "test:legal": "tsx scripts/legal-validation.test.ts"
   },
   "private": true
 }

@@ -41,6 +41,19 @@ export const businessMembershipStatus = pgEnum('business_membership_status', [
   'suspended',
   'removed',
 ]);
+export const ukLegalEntityType = pgEnum('uk_legal_entity_type', [
+  'sole_trader',
+  'limited_company',
+  'limited_liability_partnership',
+  'partnership',
+  'charity',
+  'other_organisation',
+]);
+export const legalProfileStatus = pgEnum('legal_profile_status', [
+  'draft',
+  'pending_approval',
+  'approved',
+]);
 export const businessInvitationStatus = pgEnum('business_invitation_status', [
   'pending',
   'accepted',
@@ -161,6 +174,74 @@ export const businesses = pgTable(
   },
   (table) => ({
     slugIdx: uniqueIndex('businesses_slug_unique').on(table.slug),
+  }),
+);
+
+export const businessLegalProfiles = pgTable(
+  'business_legal_profiles',
+  {
+    businessId: uuid('business_id')
+      .primaryKey()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    country: text('country').default('GB').notNull(),
+    entityType: ukLegalEntityType('entity_type').default('other_organisation').notNull(),
+    legalName: text('legal_name').default('').notNull(),
+    tradingName: text('trading_name').default('').notNull(),
+    registeredAddressLine1: text('registered_address_line1').default('').notNull(),
+    registeredAddressLine2: text('registered_address_line2').default('').notNull(),
+    registeredTownCity: text('registered_town_city').default('').notNull(),
+    registeredCounty: text('registered_county').default('').notNull(),
+    registeredPostcode: text('registered_postcode').default('').notNull(),
+    contactEmail: text('contact_email').default('').notNull(),
+    contactPhone: text('contact_phone').default('').notNull(),
+    companyNumber: text('company_number').default('').notNull(),
+    charityNumber: text('charity_number').default('').notNull(),
+    vatRegistered: boolean('vat_registered').default(false).notNull(),
+    vatNumber: text('vat_number').default('').notNull(),
+    status: legalProfileStatus('status').default('draft').notNull(),
+    revision: integer('revision').default(1).notNull(),
+    changeRequestNote: text('change_request_note').default('').notNull(),
+    lastEditedBy: uuid('last_edited_by').references(() => profiles.id, { onDelete: 'set null' }),
+    submittedBy: uuid('submitted_by').references(() => profiles.id, { onDelete: 'set null' }),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    approvedBy: uuid('approved_by').references(() => profiles.id, { onDelete: 'set null' }),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    countryCheck: check('business_legal_profiles_country_check', sql`${table.country} = 'GB'`),
+    revisionCheck: check('business_legal_profiles_revision_check', sql`${table.revision} > 0`),
+    vatCheck: check('business_legal_profiles_vat_check', sql`${table.vatRegistered} or ${table.vatNumber} = ''`),
+    legalNameCheck: check('business_legal_profiles_legal_name_check', sql`char_length(${table.legalName}) <= 160`),
+    tradingNameCheck: check('business_legal_profiles_trading_name_check', sql`char_length(${table.tradingName}) <= 120`),
+    addressCheck: check('business_legal_profiles_address_check', sql`
+      char_length(${table.registeredAddressLine1}) <= 160
+      and char_length(${table.registeredAddressLine2}) <= 160
+      and char_length(${table.registeredTownCity}) <= 100
+      and char_length(${table.registeredCounty}) <= 100
+    `),
+    postcodeCheck: check('business_legal_profiles_postcode_check', sql`
+      ${table.registeredPostcode} = '' or ${table.registeredPostcode} ~ '^(GIR 0AA|[A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2})$'
+    `),
+    emailCheck: check('business_legal_profiles_email_check', sql`
+      ${table.contactEmail} = '' or (${table.contactEmail} = lower(${table.contactEmail}) and ${table.contactEmail} ~ '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$')
+    `),
+    phoneCheck: check('business_legal_profiles_phone_check', sql`
+      ${table.contactPhone} = '' or (${table.contactPhone} ~ '^[+]?[0-9 ()-]{7,25}$' and char_length(${table.contactPhone}) <= 30)
+    `),
+    companyNumberCheck: check('business_legal_profiles_company_number_check', sql`
+      (${table.entityType} in ('limited_company', 'limited_liability_partnership') and (${table.companyNumber} = '' or ${table.companyNumber} ~ '^([0-9]{8}|[A-Z]{2}[0-9]{6})$'))
+      or (${table.entityType} not in ('limited_company', 'limited_liability_partnership') and ${table.companyNumber} = '')
+    `),
+    charityNumberCheck: check('business_legal_profiles_charity_number_check', sql`
+      (${table.entityType} = 'charity' and (${table.charityNumber} = '' or ${table.charityNumber} ~ '^([0-9]{6,8}(-[0-9]{1,2})?|[A-Z]{2}[0-9]{6})$'))
+      or (${table.entityType} <> 'charity' and ${table.charityNumber} = '')
+    `),
+    vatNumberCheck: check('business_legal_profiles_vat_number_check', sql`
+      ${table.vatNumber} = '' or ${table.vatNumber} ~ '^GB[0-9]{9}([0-9]{3})?$'
+    `),
+    noteCheck: check('business_legal_profiles_note_check', sql`char_length(${table.changeRequestNote}) <= 1000`),
   }),
 );
 

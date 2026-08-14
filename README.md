@@ -24,6 +24,7 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 - Business news/event authoring with rich text, drafts, scheduling, publication, pinning, cancellation, and content-scoped media
 - Live customer story feeds, shop following preferences, event push-delivery Edge Functions, notification deep links, and native calendar export
 - A 24-hour, read-only customer cache with offline shop, menu, story, event, and disk-cached image access
+- A private UK legal-profile workflow where finance staff prepare drafts and owners/admins approve them
 
 ## Run locally
 
@@ -47,8 +48,10 @@ To connect Supabase:
 9. Run `pnpm run db:migrate` to apply `drizzle/0004_sticky_the_twelve.sql`, then apply `supabase/migrations/005_news_events.sql`.
 10. Run `supabase/tests/005_news_events_rls.sql`; it is transactional and rolls back its test records.
 11. Apply `supabase/migrations/007_public_marketplace.sql`, then run `supabase/tests/007_public_marketplace_rls.sql`.
-12. Put the project URL and publishable/anon key in `.env`.
-13. Restart Expo so the public environment variables are bundled.
+12. Run `pnpm run db:migrate` to apply `drizzle/0005_uk_legal_profiles.sql`, then apply `supabase/migrations/008_uk_legal_profiles.sql`.
+13. Run `supabase/tests/008_uk_legal_profiles_rls.sql`; it is transactional and rolls back its fixtures.
+14. Put the project URL and publishable/anon key in `.env`.
+15. Restart Expo so the public environment variables are bundled.
 
 ### Menu management deployment
 
@@ -153,6 +156,18 @@ The app never contains the service-role key. Edge Functions receive it from the 
 6. Reconnect and confirm visible stale queries refresh. Sign out and confirm account-scoped followed data is removed.
 
 TanStack Query persists only explicitly marked customer-reading queries to AsyncStorage. Business management, team, applications, profile data, errors, and mutations are never persisted. Infinite feeds retain at most two pages, cache entries expire after 24 hours, and Expo Image uses stable disk-cache keys for previously viewed media. Offline writes are intentionally outside this release.
+
+### UK legal-profile deployment
+
+1. Apply Drizzle migration `0005_uk_legal_profiles.sql` before Supabase migration `008_uk_legal_profiles.sql`.
+2. Run `supabase/tests/008_uk_legal_profiles_rls.sql`. It must finish without an assertion error and rolls back every fixture.
+3. Open **Business portal → Payments** as a finance member, complete a draft, and submit it.
+4. Confirm manager, barista, viewer, suspended-member, applicant, platform-admin-only, and anonymous accounts cannot open or read the legal profile.
+5. Open the submission as an owner/admin, return it with a note, then resubmit and approve it using the authority-and-accuracy attestation.
+6. Edit the approved profile as finance and confirm approval is removed and the profile returns to draft.
+7. Use two authorised sessions to confirm a stale revision produces a refresh message rather than overwriting newer information.
+
+Local Mug stores ordinary UK business identity details only. It does not store UTRs, bank details, personal identity documents, directors, beneficial owners, dates of birth, National Insurance numbers, or future provider-onboarding answers. The current checks validate format and owner approval; they do not claim Companies House, HMRC, Stripe, or PayPal verification.
 
 ## Database workflow
 

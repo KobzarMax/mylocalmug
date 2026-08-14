@@ -15,6 +15,9 @@ export type Permission =
   | 'payments.charge'
   | 'payments.refund'
   | 'payments.connect'
+  | 'legal.read'
+  | 'legal.write'
+  | 'legal.approve'
   | 'loyalty.issue'
   | 'analytics.read'
   | 'ownership.transfer';

@@ -6,7 +6,7 @@ import { hasPermission } from '../permissions';
 import { Permission, Workspace } from '../types';
 import { colors, styles } from '../styles';
 
-export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile, onOpenMenu, onOpenContent, onOpenTeam, onReviewApplications }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; onOpenMenu: () => void; onOpenContent: () => void; onOpenTeam: () => void; onReviewApplications?: () => void }) {
+export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile, onOpenMenu, onOpenContent, onOpenTeam, onOpenPayments, onReviewApplications }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; onOpenMenu: () => void; onOpenContent: () => void; onOpenTeam: () => void; onOpenPayments: () => void; onReviewApplications?: () => void }) {
   const { business, role } = workspace;
   const completion = Math.round(([business.description, business.address, business.contactEmail, business.contactPhone, business.websiteUrl].filter(Boolean).length / 5) * 100);
   const allActions: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; permission: Permission; action?: () => void }[] = [
@@ -15,7 +15,7 @@ export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, o
     { icon: 'newspaper-outline', label: 'News & events', permission: 'content.manage', action: onOpenContent },
     { icon: 'gift-outline', label: 'Rewards', permission: 'rewards.manage' },
     { icon: 'people-outline', label: 'Team', permission: 'team.read', action: onOpenTeam },
-    { icon: 'card-outline', label: 'Payments', permission: 'payments.read' },
+    { icon: 'card-outline', label: 'Payments', permission: 'payments.read', action: onOpenPayments },
   ];
   const actions = allActions.filter((item) => hasPermission(role, item.permission));
   if (onReviewApplications) actions.push({ icon: 'shield-checkmark-outline', label: 'Application reviews', permission: 'business.profile.write', action: onReviewApplications });

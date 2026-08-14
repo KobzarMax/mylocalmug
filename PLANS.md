@@ -105,6 +105,20 @@ Implemented:
 
 Employee invitation feature status: **DONE**. The invitation table and create, accept, and revoke functions were confirmed in the live Supabase project. Automatic invitation-email delivery remains intentionally pending until an email provider and trusted Edge Function are selected. Until then, owners securely share the copied single-use code. Ownership transfer is a separate future feature.
 
+### UK legal profile
+
+Implementation status: **CODE DONE; MIGRATIONS AND LIVE ACCEPTANCE PENDING**.
+
+- Private one-to-one UK legal profiles for sole traders, limited companies, LLPs, partnerships, charities, and other organisations.
+- Structured registered address, legal contact, conditional Companies House/charity/VAT fields, and UK format validation.
+- Draft, pending-approval, change-request, and owner-approved workflow with optimistic revisions.
+- Finance users can read, edit, and submit; owners/admins can additionally attest, approve, or return submissions.
+- Every approved-profile edit invalidates approval and returns the record to draft.
+- Trusted RPCs derive the actor from Auth, enforce active membership, and log action names and changed fields without copying legal values.
+- Business approvals seed a legal draft; existing businesses are backfilled from approved applications when safe.
+- No KYC documents, bank data, UTRs, directors, beneficial owners, identity details, or provider answers are stored.
+- Drizzle `0005`, Supabase `008`, Zod tests, and transactional RLS/lifecycle tests are ready.
+
 ### Menu management
 
 Implementation status: **CODE DONE** in commit `ab27d4d`.
@@ -191,6 +205,15 @@ src/features/team/
   types.ts
   validation.ts
   components/
+
+src/features/legal/
+  LegalEntry.tsx
+  api.ts
+  hooks.ts
+  styles.ts
+  types.ts
+  validation.ts
+  components/
 ```
 
 - UI does not access Supabase directly.
@@ -215,8 +238,9 @@ Applied successfully:
 
 Ready to apply:
 
-- Supabase migration `007_public_marketplace.sql`.
-- Transactional verification script `supabase/tests/007_public_marketplace_rls.sql`.
+- Drizzle migration `0005_uk_legal_profiles.sql`.
+- Supabase migration `008_uk_legal_profiles.sql`.
+- Transactional verification script `supabase/tests/008_uk_legal_profiles_rls.sql`.
 
 News/events verification pending:
 
@@ -247,7 +271,7 @@ on conflict do nothing;
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
 - Menu-management RLS and live role/device acceptance are not yet recorded.
-- Rewards, loyalty, payments, and analytics dashboard actions remain incomplete.
+- Rewards, loyalty, payment-provider connections, till orders, checkout, and analytics remain incomplete; the UK legal prerequisite is code-complete.
 - News/events backend deployment is complete; RLS rerun, Cron execution evidence, Android FCM, paused iOS APNs registration, and physical-device push/calendar acceptance remain pending.
 - Payments and terminals are not implemented.
 - Offline customer data is read-only by design; queued writes and conflict resolution are not implemented.
@@ -330,15 +354,14 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Secure loyalty wallet opening, stamp issuing, redemption, and immutable audit history.
 - Replace mock customer news, rewards, and shop details with live queries.
 
-### 8. Payments
+### 8. UK legal profile and payment connections
 
-- Select and deploy a trusted backend or Supabase Edge Functions.
-- Add provider-neutral payment connection and transaction tables.
-- Implement Stripe Connect hosted onboarding.
-- Add card, Apple Pay, and Google Pay through PaymentSheet.
-- Add verified, idempotent webhooks and normalized payment state.
-- Implement refunds and reconciliation.
-- Prototype PayPal as a separate provider.
+- Apply Drizzle `0005`, then Supabase `008`, and run the transactional `008` verification script.
+- Complete finance-draft, owner/admin change-request and approval, denied-role, conflict, and approval-invalidation acceptance.
+- Add provider-neutral Stripe/PayPal connection state only after legal acceptance.
+- Implement UK Stripe Connect hosted onboarding with direct charges and verified idempotent webhooks.
+- Add PayPal partner merchant onboarding as a separate online provider.
+- Keep KYC, identity documents, bank data, and provider secrets outside the Expo application and public tables.
 
 ### 9. Terminals
 

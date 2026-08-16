@@ -1,56 +1,62 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+
+import { safeErrorMessage } from '../../lib/errors';
 import { hasPermission } from '../business/permissions';
 import { Workspace } from '../business/types';
-import { approveLegalProfile, getLegalProfile, requestLegalProfileChanges, saveLegalProfile, submitLegalProfile } from './api';
+
+import {
+  approveLegalProfile,
+  getLegalProfile,
+  requestLegalProfileChanges,
+  saveLegalProfile,
+  submitLegalProfile,
+} from './api';
 import { BusinessLegalProfile, BusinessLegalProfileInput } from './types';
-import { firstValidationMessage, legalDraftSchema, legalSubmissionSchema, normalizeLegalInput } from './validation';
+import {
+  firstValidationMessage,
+  legalDraftSchema,
+  legalSubmissionSchema,
+  normalizeLegalInput,
+} from './validation';
 
 export function useLegalProfile(workspace: Workspace) {
-  const [profile, setProfile] = useState<BusinessLegalProfile | null>(null);
   const [form, setForm] = useState<BusinessLegalProfileInput | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const next = await getLegalProfile(workspace.business.id);
-      setProfile(next);
+  const queryKey = ['business-legal-profile', workspace.business.id] as const;
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey,
+    queryFn: () => getLegalProfile(workspace.business.id),
+    meta: { persist: false },
+  });
+  const mutation = useMutation({
+    mutationFn: (operation: () => Promise<BusinessLegalProfile>) => operation(),
+    onSuccess: (next) => {
+      client.setQueryData(queryKey, next);
       setForm(toInput(next));
       setDirty(false);
-    } catch (caught) {
-      setError(messageFrom(caught, 'Legal information is unavailable.'));
-    } finally {
-      setLoading(false);
-    }
-  }, [workspace.business.id]);
+    },
+  });
+  const profile = query.data ?? null;
+  useEffect(() => {
+    if (query.data && !dirty) setForm(toInput(query.data));
+  }, [dirty, query.data]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  const update = <Key extends keyof BusinessLegalProfileInput>(key: Key, value: BusinessLegalProfileInput[Key]) => {
-    setForm((current) => current ? { ...current, [key]: value } : current);
+  const update = <Key extends keyof BusinessLegalProfileInput>(
+    key: Key,
+    value: BusinessLegalProfileInput[Key],
+  ) => {
+    setForm((current) => (current ? { ...current, [key]: value } : current));
     setDirty(true);
-    setError(null);
   };
 
   const run = async (operation: () => Promise<BusinessLegalProfile>) => {
-    setBusy(true);
-    setError(null);
     try {
-      const next = await operation();
-      setProfile(next);
-      setForm(toInput(next));
-      setDirty(false);
-      return next;
+      return await mutation.mutateAsync(operation);
     } catch (caught) {
       const message = messageFrom(caught, 'Could not update the legal profile.');
-      setError(message);
       throw new Error(message);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -77,26 +83,72 @@ export function useLegalProfile(workspace: Workspace) {
   };
 
   return {
-    profile, form, loading, busy, dirty, error, refresh, update, save, submit,
-    approve: () => profile ? run(() => approveLegalProfile(profile.businessId, profile.revision)) : Promise.reject(new Error('Legal information is still loading.')),
-    requestChanges: (note: string) => profile ? run(() => requestLegalProfileChanges(profile.businessId, profile.revision, note)) : Promise.reject(new Error('Legal information is still loading.')),
+    profile,
+    form,
+    loading: query.isLoading,
+    busy: mutation.isPending,
+    dirty,
+    error: query.error
+      ? messageFrom(query.error, 'Legal information is unavailable.')
+      : mutation.error
+        ? messageFrom(mutation.error, 'Could not update the legal profile.')
+        : null,
+    refresh: () => client.invalidateQueries({ queryKey }),
+    update,
+    save,
+    submit,
+    approve: () =>
+      profile
+        ? run(() => approveLegalProfile(profile.businessId, profile.revision))
+        : Promise.reject(new Error('Legal information is still loading.')),
+    requestChanges: (note: string) =>
+      profile
+        ? run(() => requestLegalProfileChanges(profile.businessId, profile.revision, note))
+        : Promise.reject(new Error('Legal information is still loading.')),
     canWrite: hasPermission(workspace.role, 'legal.write'),
     canApprove: hasPermission(workspace.role, 'legal.approve'),
   };
 }
 
 function toInput(profile: BusinessLegalProfile): BusinessLegalProfileInput {
-  const { entityType, legalName, tradingName, registeredAddressLine1, registeredAddressLine2,
-    registeredTownCity, registeredCounty, registeredPostcode, contactEmail, contactPhone,
-    companyNumber, charityNumber, vatRegistered, vatNumber } = profile;
-  return { entityType, legalName, tradingName, registeredAddressLine1, registeredAddressLine2,
-    registeredTownCity, registeredCounty, registeredPostcode, contactEmail, contactPhone,
-    companyNumber, charityNumber, vatRegistered, vatNumber };
+  const {
+    entityType,
+    legalName,
+    tradingName,
+    registeredAddressLine1,
+    registeredAddressLine2,
+    registeredTownCity,
+    registeredCounty,
+    registeredPostcode,
+    contactEmail,
+    contactPhone,
+    companyNumber,
+    charityNumber,
+    vatRegistered,
+    vatNumber,
+  } = profile;
+  return {
+    entityType,
+    legalName,
+    tradingName,
+    registeredAddressLine1,
+    registeredAddressLine2,
+    registeredTownCity,
+    registeredCounty,
+    registeredPostcode,
+    contactEmail,
+    contactPhone,
+    companyNumber,
+    charityNumber,
+    vatRegistered,
+    vatNumber,
+  };
 }
 
 function messageFrom(caught: unknown, fallback: string) {
   if (!caught || typeof caught !== 'object') return fallback;
   const message = 'message' in caught && typeof caught.message === 'string' ? caught.message : fallback;
-  if (/changed\. refresh/i.test(message)) return 'Someone else changed this legal profile. Refresh before continuing.';
-  return message;
+  if (/changed\. refresh/i.test(message))
+    return 'Someone else changed this legal profile. Refresh before continuing.';
+  return safeErrorMessage(caught, fallback);
 }

@@ -22,10 +22,7 @@ export const profileDescriptionSchema = z
 
 export const avatarPathSchema = z
   .string()
-  .regex(
-    /^[0-9a-f-]{36}\/avatar-[0-9]+\.(jpg|png|webp)$/,
-    'Avatar path is invalid.',
-  );
+  .regex(/^[0-9a-f-]{36}\/avatar-[0-9]+\.(jpg|png|webp)$/, 'Avatar path is invalid.');
 
 export const profileUpdateInputSchema = z.object({
   displayName: displayNameSchema,

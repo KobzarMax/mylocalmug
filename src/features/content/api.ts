@@ -1,4 +1,6 @@
 import { supabase } from '../../lib/supabase';
+import { Database, Json } from '../../types/database';
+
 import {
   ContentCursor,
   ContentEditorInput,
@@ -10,11 +12,15 @@ import {
 } from './types';
 import { normalizeContentInput, publicationTimeSchema } from './validation';
 
-const contentSelect = 'id, business_id, kind, title, excerpt, body_document, body_text, cover_path, author_display_name, event_starts_at, event_ends_at, event_all_day, event_timezone, event_venue_name, event_venue_address, event_cancelled_at, event_cancellation_reason, is_pinned, published_at, archived_at, created_at, updated_at';
+const contentSelect =
+  'id, business_id, kind, title, excerpt, body_document, body_text, cover_path, author_display_name, event_starts_at, event_ends_at, event_all_day, event_timezone, event_venue_name, event_venue_address, event_cancelled_at, event_cancellation_reason, is_pinned, published_at, archived_at, created_at, updated_at';
 
 export async function getBusinessContent(businessId: string, businessName: string): Promise<ContentItem[]> {
-  const postsResult = await supabase.from('posts').select(contentSelect)
-    .eq('business_id', businessId).order('updated_at', { ascending: false });
+  const postsResult = await supabase
+    .from('posts')
+    .select(contentSelect)
+    .eq('business_id', businessId)
+    .order('updated_at', { ascending: false });
   if (postsResult.error) throw postsResult.error;
   const rows = (postsResult.data ?? []) as ContentRow[];
   const reminders = await getReminders(rows.map((row) => row.id));
@@ -35,7 +41,7 @@ export async function saveContentDraft(
     content_kind: value.kind,
     content_title: value.title,
     content_excerpt: value.excerpt,
-    content_body_document: value.bodyDocument,
+    content_body_document: JSON.parse(JSON.stringify(value.bodyDocument)) as Json,
     content_body_text: value.bodyText,
     content_cover_path: coverPath,
     content_is_pinned: value.isPinned,
@@ -88,41 +94,55 @@ export async function getPublicContentPage(options: {
   pageSize?: number;
 }): Promise<ContentPage> {
   const result = await supabase.rpc('get_public_content_feed', {
-    target_business_id: options.businessId ?? null,
-    target_post_id: options.postId ?? null,
-    requested_kind: options.kind ?? null,
+    target_business_id: options.businessId ?? undefined,
+    target_post_id: options.postId ?? undefined,
+    requested_kind: options.kind ?? undefined,
     followed_only: options.followedOnly ?? false,
-    cursor_pinned: options.cursor?.pinned ?? null,
-    cursor_published_at: options.cursor?.publishedAt ?? null,
-    cursor_id: options.cursor?.id ?? null,
+    cursor_pinned: options.cursor?.pinned ?? undefined,
+    cursor_published_at: options.cursor?.publishedAt ?? undefined,
+    cursor_id: options.cursor?.id ?? undefined,
     page_size: options.pageSize ?? 20,
   });
   if (result.error) throw result.error;
   const rows = (result.data ?? []) as PublicContentRow[];
   const covers = await getSignedCoverUrls(rows.map((row) => row.cover_path));
   const items = rows.map((row) => {
-    const item = mapContent(row, row.reminder_minutes ?? [], covers, row.business_name, row.business_logo_url);
+    const item = mapContent(
+      row,
+      row.reminder_minutes ?? [],
+      covers,
+      row.business_name,
+      row.business_logo_url,
+    );
     const { bodyDocument: _document, bodyText, ...summary } = item;
     return { ...summary, readingMinutes: readingMinutes(bodyText) };
   });
   const last = items.at(-1);
   return {
     items,
-    nextCursor: rows.length === (options.pageSize ?? 20) && last?.publishedAt
-      ? { pinned: last.isPinned && last.kind === 'event' && Boolean(last.eventStartsAt && new Date(last.eventStartsAt) > new Date()), publishedAt: last.publishedAt, id: last.id }
-      : null,
+    nextCursor:
+      rows.length === (options.pageSize ?? 20) && last?.publishedAt
+        ? {
+            pinned:
+              last.isPinned &&
+              last.kind === 'event' &&
+              Boolean(last.eventStartsAt && new Date(last.eventStartsAt) > new Date()),
+            publishedAt: last.publishedAt,
+            id: last.id,
+          }
+        : null,
   };
 }
 
 export async function getPublicContentDetail(postId: string): Promise<ContentDetail | null> {
   const result = await supabase.rpc('get_public_content_feed', {
-    target_business_id: null,
+    target_business_id: undefined,
     target_post_id: postId,
-    requested_kind: null,
+    requested_kind: undefined,
     followed_only: false,
-    cursor_pinned: null,
-    cursor_published_at: null,
-    cursor_id: null,
+    cursor_pinned: undefined,
+    cursor_published_at: undefined,
+    cursor_id: undefined,
     page_size: 1,
   });
   if (result.error) throw result.error;
@@ -136,9 +156,12 @@ export async function getPublicContentDetail(postId: string): Promise<ContentDet
 export async function getFollowState(businessId: string): Promise<FollowState> {
   const user = await supabase.auth.getUser();
   if (user.error || !user.data.user) throw user.error ?? new Error('Sign in to view following settings.');
-  const result = await supabase.from('business_followers')
-    .select('event_notifications_enabled').eq('business_id', businessId)
-    .eq('client_id', user.data.user.id).maybeSingle();
+  const result = await supabase
+    .from('business_followers')
+    .select('event_notifications_enabled')
+    .eq('business_id', businessId)
+    .eq('client_id', user.data.user.id)
+    .maybeSingle();
   if (result.error) throw result.error;
   return {
     following: Boolean(result.data),
@@ -159,8 +182,10 @@ export async function followBusiness(businessId: string) {
 }
 
 export async function setBusinessEventAlerts(businessId: string, enabled: boolean) {
-  const result = await supabase.from('business_followers')
-    .update({ event_notifications_enabled: enabled }).eq('business_id', businessId);
+  const result = await supabase
+    .from('business_followers')
+    .update({ event_notifications_enabled: enabled })
+    .eq('business_id', businessId);
   if (result.error) throw result.error;
 }
 
@@ -180,27 +205,64 @@ export async function registerPushDevice(token: string, platform: 'ios' | 'andro
 async function getReminders(postIds: string[]) {
   const grouped = new Map<string, number[]>();
   if (!postIds.length) return grouped;
-  const result = await supabase.from('post_event_reminders')
-    .select('post_id, minutes_before').in('post_id', postIds);
+  const result = await supabase
+    .from('post_event_reminders')
+    .select('post_id, minutes_before')
+    .in('post_id', postIds);
   if (result.error) throw result.error;
-  (result.data ?? []).forEach((row) => grouped.set(row.post_id, [...(grouped.get(row.post_id) ?? []), row.minutes_before]));
+  (result.data ?? []).forEach((row) =>
+    grouped.set(row.post_id, [...(grouped.get(row.post_id) ?? []), row.minutes_before]),
+  );
   return grouped;
 }
 
-async function getSignedCoverUrls(paths: Array<string | null>) {
+async function getSignedCoverUrls(paths: (string | null)[]) {
   const unique = [...new Set(paths.filter((path): path is string => Boolean(path)))];
-  const entries = await Promise.all(unique.map(async (path) => {
-    if (/^https?:\/\//i.test(path)) return [path, path] as const;
-    const result = await supabase.storage.from('content-media').createSignedUrl(path, 3600);
-    return [path, result.error ? null : result.data.signedUrl] as const;
-  }));
+  const entries = await Promise.all(
+    unique.map(async (path) => {
+      if (/^https?:\/\//i.test(path)) return [path, path] as const;
+      const result = await supabase.storage.from('content-media').createSignedUrl(path, 3600);
+      return [path, result.error ? null : result.data.signedUrl] as const;
+    }),
+  );
   return new Map(entries);
 }
 
-type ContentRow = Record<string, unknown> & { id: string; cover_path: string | null };
-type PublicContentRow = ContentRow & { business_name: string; business_logo_url: string | null; reminder_minutes: number[] };
+type PostRow = Database['public']['Tables']['posts']['Row'];
+type ContentRow = Pick<
+  PostRow,
+  | 'id'
+  | 'business_id'
+  | 'kind'
+  | 'title'
+  | 'excerpt'
+  | 'body_document'
+  | 'body_text'
+  | 'cover_path'
+  | 'author_display_name'
+  | 'event_starts_at'
+  | 'event_ends_at'
+  | 'event_all_day'
+  | 'event_timezone'
+  | 'event_venue_name'
+  | 'event_venue_address'
+  | 'event_cancelled_at'
+  | 'event_cancellation_reason'
+  | 'is_pinned'
+  | 'published_at'
+  | 'archived_at'
+  | 'created_at'
+  | 'updated_at'
+>;
+type PublicContentRow = Database['public']['Functions']['get_public_content_feed']['Returns'][number];
 
-function mapContent(row: ContentRow, reminders: number[], covers: Map<string, string | null>, businessName: string, businessLogoUrl: string | null): ContentItem {
+function mapContent(
+  row: ContentRow,
+  reminders: number[],
+  covers: Map<string, string | null>,
+  businessName: string,
+  businessLogoUrl: string | null,
+): ContentItem {
   return {
     id: row.id,
     businessId: String(row.business_id),
@@ -212,7 +274,7 @@ function mapContent(row: ContentRow, reminders: number[], covers: Map<string, st
     bodyDocument: row.body_document as ContentItem['bodyDocument'],
     bodyText: String(row.body_text),
     coverPath: row.cover_path,
-    coverUrl: row.cover_path ? covers.get(row.cover_path) ?? null : null,
+    coverUrl: row.cover_path ? (covers.get(row.cover_path) ?? null) : null,
     authorDisplayName: String(row.author_display_name),
     eventStartsAt: row.event_starts_at as string | null,
     eventEndsAt: row.event_ends_at as string | null,

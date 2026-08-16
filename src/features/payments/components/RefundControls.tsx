@@ -1,4 +1,46 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+
 import { styles } from '../styles';
-export function RefundControls({availablePence,busy,onSubmit}:{availablePence:number;busy:boolean;onSubmit:(amountPence:number,reason:string)=>void}){const[amount,setAmount]=useState((availablePence/100).toFixed(2));const[reason,setReason]=useState('Customer request');const pence=Math.round(Number(amount)*100);return <View style={{gap:8}}><Text style={styles.body}>Refund up to £{(availablePence/100).toFixed(2)}</Text><TextInput accessibilityLabel="Refund amount" keyboardType="decimal-pad" value={amount} onChangeText={setAmount} style={[styles.card,{padding:12,borderRadius:12}]}/><TextInput accessibilityLabel="Refund reason" value={reason} onChangeText={setReason} maxLength={500} style={[styles.card,{padding:12,borderRadius:12}]}/><Pressable disabled={busy||!Number.isInteger(pence)||pence<=0||pence>availablePence||reason.trim().length<3} onPress={()=>onSubmit(pence,reason.trim())} style={[styles.button,styles.buttonDanger,busy&&styles.disabled]}><Text style={styles.buttonText}>Issue refund</Text></Pressable></View>}
+export function RefundControls({
+  availablePence,
+  busy,
+  onSubmit,
+}: {
+  availablePence: number;
+  busy: boolean;
+  onSubmit: (amountPence: number, reason: string) => void;
+}) {
+  const [amount, setAmount] = useState((availablePence / 100).toFixed(2));
+  const [reason, setReason] = useState('Customer request');
+  const pence = Math.round(Number(amount) * 100);
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.body}>Refund up to £{(availablePence / 100).toFixed(2)}</Text>
+      <TextInput
+        accessibilityLabel="Refund amount"
+        keyboardType="decimal-pad"
+        value={amount}
+        onChangeText={setAmount}
+        style={[styles.card, { padding: 12, borderRadius: 12 }]}
+      />
+      <TextInput
+        accessibilityLabel="Refund reason"
+        value={reason}
+        onChangeText={setReason}
+        maxLength={500}
+        style={[styles.card, { padding: 12, borderRadius: 12 }]}
+      />
+      <Pressable
+        accessibilityRole="button"
+        disabled={
+          busy || !Number.isInteger(pence) || pence <= 0 || pence > availablePence || reason.trim().length < 3
+        }
+        onPress={() => onSubmit(pence, reason.trim())}
+        style={[styles.button, styles.buttonDanger, busy && styles.disabled]}
+      >
+        <Text style={styles.buttonText}>Issue refund</Text>
+      </Pressable>
+    </View>
+  );
+}

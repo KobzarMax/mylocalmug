@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+
 import type { Query } from '@tanstack/react-query';
+
 import {
   QUERY_CACHE_MAX_AGE,
   requireOnline,
@@ -7,10 +9,11 @@ import {
   shouldRemoveForAccount,
 } from '../src/lib/query/config';
 
-const query = (status: 'success' | 'error', meta?: Record<string, unknown>) => ({
-  state: { status },
-  meta,
-}) as unknown as Query;
+const query = (status: 'success' | 'error', meta?: Record<string, unknown>) =>
+  ({
+    state: { status },
+    meta,
+  }) as unknown as Query;
 
 assert.equal(QUERY_CACHE_MAX_AGE, 86_400_000, 'cache expiry must be exactly 24 hours');
 assert.equal(shouldPersistQuery(query('success', { persist: true })), true);

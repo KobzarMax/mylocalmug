@@ -1,8 +1,4 @@
-import {
-  PROFILE_IMAGE_MAX_BYTES,
-  PROFILE_IMAGE_MIME_TYPES,
-  ProfileImageMime,
-} from './profileValidation';
+import { PROFILE_IMAGE_MAX_BYTES, PROFILE_IMAGE_MIME_TYPES, ProfileImageMime } from './profileValidation';
 
 export const PROFILE_IMAGE_BUCKET = 'profile-images';
 

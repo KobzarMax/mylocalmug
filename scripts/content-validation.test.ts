@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
-import { contentEditorSchema, normalizeContentInput } from '../src/features/content/validation';
+
 import { ContentEditorInput } from '../src/features/content/types';
+import { contentEditorSchema, normalizeContentInput } from '../src/features/content/validation';
 
 const news: ContentEditorInput = {
   kind: 'news',
   title: 'A new seasonal roast',
   excerpt: 'Meet the coffee joining our bar this week.',
-  bodyDocument: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Freshly roasted.' }] }] },
+  bodyDocument: {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Freshly roasted.' }] }],
+  },
   bodyText: 'Freshly roasted.',
   isPinned: false,
   eventStartsAt: null,
@@ -19,10 +23,28 @@ const news: ContentEditorInput = {
 };
 
 assert.equal(contentEditorSchema.safeParse(news).success, true, 'valid news should pass');
-assert.equal(contentEditorSchema.safeParse({
-  ...news,
-  bodyDocument: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Unsafe', marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }] }] }] },
-}).success, false, 'unsafe link protocols should fail');
+assert.equal(
+  contentEditorSchema.safeParse({
+    ...news,
+    bodyDocument: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Unsafe',
+              marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }],
+            },
+          ],
+        },
+      ],
+    },
+  }).success,
+  false,
+  'unsafe link protocols should fail',
+);
 
 const event: ContentEditorInput = {
   ...news,
@@ -34,9 +56,20 @@ const event: ContentEditorInput = {
   eventVenueAddress: '1 Coffee Street',
   reminderMinutes: [60, 1440, 60],
 };
-assert.deepEqual(normalizeContentInput(event).reminderMinutes, [1440, 60], 'reminders should be unique and ordered');
-assert.equal(contentEditorSchema.safeParse({ ...event, eventEndsAt: '2027-08-20T17:00:00.000Z' }).success, false, 'event end before start should fail');
-assert.equal(contentEditorSchema.safeParse({ ...event, eventTimezone: 'Not/A_Timezone' }).success, false, 'invalid IANA timezone should fail');
+assert.deepEqual(
+  normalizeContentInput(event).reminderMinutes,
+  [1440, 60],
+  'reminders should be unique and ordered',
+);
+assert.equal(
+  contentEditorSchema.safeParse({ ...event, eventEndsAt: '2027-08-20T17:00:00.000Z' }).success,
+  false,
+  'event end before start should fail',
+);
+assert.equal(
+  contentEditorSchema.safeParse({ ...event, eventTimezone: 'Not/A_Timezone' }).success,
+  false,
+  'invalid IANA timezone should fail',
+);
 
 console.log('Content validation tests passed.');
-

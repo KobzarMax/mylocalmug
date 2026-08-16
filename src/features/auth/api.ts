@@ -1,12 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmailOtpType, Session, User } from '@supabase/supabase-js';
+
 import { supabase } from '../../lib/supabase';
+
 import { AccountProfile, RegistrationResult } from './types';
 
 const pendingEmailKey = 'local-mug:pending-confirmation-email';
 export const authRedirectUrl = 'localmug://auth/confirm';
 
-export async function registerAccount(email: string, password: string, displayName: string): Promise<RegistrationResult> {
+export async function registerAccount(
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<RegistrationResult> {
   const result = await supabase.auth.signUp({
     email,
     password,
@@ -65,9 +71,10 @@ export async function getAccountProfile(user: User): Promise<AccountProfile> {
   if (result.error) throw result.error;
   if (result.data) return result.data as AccountProfile;
 
-  const metadataName = typeof user.user_metadata?.display_name === 'string'
-    ? user.user_metadata.display_name.trim().slice(0, 80)
-    : '';
+  const metadataName =
+    typeof user.user_metadata?.display_name === 'string'
+      ? user.user_metadata.display_name.trim().slice(0, 80)
+      : '';
   const fallback: AccountProfile = {
     id: user.id,
     role: 'client',
@@ -75,7 +82,11 @@ export async function getAccountProfile(user: User): Promise<AccountProfile> {
     description: '',
     avatar_path: null,
   };
-  const created = await supabase.from('profiles').upsert(fallback).select('id, role, display_name, description, avatar_path').single();
+  const created = await supabase
+    .from('profiles')
+    .upsert(fallback)
+    .select('id, role, display_name, description, avatar_path')
+    .single();
   if (created.error) throw created.error;
   return created.data as AccountProfile;
 }
@@ -125,5 +136,7 @@ function getAuthUrlParams(url: string) {
 }
 
 function isEmailOtpType(value: string | null): value is EmailOtpType {
-  return value !== null && ['email', 'signup', 'invite', 'magiclink', 'recovery', 'email_change'].includes(value);
+  return (
+    value !== null && ['email', 'signup', 'invite', 'magiclink', 'recovery', 'email_change'].includes(value)
+  );
 }

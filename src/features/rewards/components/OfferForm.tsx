@@ -1,13 +1,119 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+
+import { offerSteps, useOfferDraft } from '../offerFormHooks';
+import { rewardStyles as s } from '../styles';
 import { LoyaltyOffer, LoyaltyOfferInput, LoyaltyProgram, MenuChoice } from '../types';
-import { rewardColors, rewardStyles as s } from '../styles';
+
+import { OfferBenefitStep } from './OfferBenefitStep';
+import { OfferReviewStep } from './OfferReviewStep';
+import { OfferSetupStep } from './OfferSetupStep';
+import { RewardStepHeader } from './RewardStepHeader';
 import { RewardHeader } from './RewardUI';
 
-export function OfferForm({offer,programs,menu,busy,onBack,onSave}:{offer:LoyaltyOffer|null;programs:LoyaltyProgram[];menu:MenuChoice[];busy:boolean;onBack:()=>void;onSave:(input:LoyaltyOfferInput)=>Promise<unknown>}){
- const[kind,setKind]=useState<LoyaltyOfferInput['kind']>(offer?.kind??'balance_reward');const[benefit,setBenefit]=useState<LoyaltyOfferInput['benefitType']>(offer?.benefitType??'free_item');const[programId,setProgramId]=useState<string|null>(offer?.programId??programs[0]?.id??null);const[tierId,setTierId]=useState<string|null>(offer?.tierId??null);const[title,setTitle]=useState(offer?.title??'');const[description,setDescription]=useState(offer?.description??'');const[instructions,setInstructions]=useState(offer?.staffInstructions??'Check the customer basket, then apply this benefit on the till.');const[cost,setCost]=useState(String(offer?.balanceCost??10));const[amount,setAmount]=useState(offer?.amountPence==null?'':String(offer.amountPence/100));const[percentage,setPercentage]=useState(offer?.percentageOff==null?'':String(offer.percentageOff));const[audience,setAudience]=useState<LoyaltyOfferInput['audience']>(offer?.audience??'members');const[usageLimit,setUsageLimit]=useState(String(offer?.usageLimit??1));const[usagePeriod,setUsagePeriod]=useState<NonNullable<LoyaltyOfferInput['usagePeriod']>>(offer?.usagePeriod??'day');const[startsAt,setStartsAt]=useState(offer?.startsAt??'');const[endsAt,setEndsAt]=useState(offer?.endsAt??'');const[isActive,setIsActive]=useState(offer?.isActive??true);const[groups,setGroups]=useState<Record<string,0|1|2>>(()=>Object.fromEntries((offer?.mealDealGroups??[]).flatMap((group,index)=>group.menuItemIds.map(id=>[id,index===0?1:2]))));
- const submit=async()=>{try{const group=(number:1|2)=>menu.filter(item=>groups[item.id]===number).map(item=>item.id);await onSave({programId,tierId,kind,benefitType:benefit,audience,title,description,staffInstructions:instructions,balanceCost:kind==='balance_reward'?Number(cost):null,amountPence:['fixed_discount','bundle_price'].includes(benefit)?Math.round(Number(amount)*100):null,percentageOff:benefit==='percentage_discount'?Number(percentage):null,usageLimit:kind==='tier_perk'?Number(usageLimit):null,usagePeriod:kind==='tier_perk'?usagePeriod:null,startsAt:startsAt.trim()||null,endsAt:endsAt.trim()||null,isActive,items:[],mealDealGroups:benefit==='bundle_price'?[{name:'Choose from group A',quantity:1,sortOrder:0,menuItemIds:group(1)},{name:'Choose from group B',quantity:1,sortOrder:1,menuItemIds:group(2)}]:[]});onBack();}catch(caught){Alert.alert('Could not save offer',caught instanceof Error?caught.message:'Check the offer details.');}};
- return <ScrollView contentContainerStyle={s.scroll}><RewardHeader title={offer?'Edit reward or deal':'Create reward or deal'} onBack={onBack}/><Text style={s.label}>Offer kind</Text><View style={s.wrap}>{(['balance_reward','tier_perk','promotion'] as const).map(value=><Chip key={value} label={value.replace('_',' ')} active={kind===value} onPress={()=>{setKind(value);setAudience(value==='promotion'?'everyone':'members');}}/>)}</View><Text style={s.sectionTitle}>Benefit</Text><View style={s.wrap}>{(['free_item','custom_perk','fixed_discount','percentage_discount','bundle_price'] as const).map(value=><Chip key={value} label={value.replaceAll('_',' ')} active={benefit===value} onPress={()=>setBenefit(value)}/>)}</View>{(kind!=='promotion'||audience==='tier')&&<><Text style={s.sectionTitle}>Programme</Text><View style={s.wrap}>{programs.map(program=><Chip key={program.id} label={program.name} active={programId===program.id} onPress={()=>{setProgramId(program.id);setTierId(null);}}/>)}</View></>}{(kind==='tier_perk'||audience==='tier')&&<><Text style={s.sectionTitle}>Required tier</Text><View style={s.wrap}>{(programs.find(program=>program.id===programId)?.tiers??[]).map(tier=><Chip key={tier.id} label={tier.name} active={tierId===tier.id} onPress={()=>setTierId(tier.id)}/>)}</View></>}<Field label="Title" value={title} onChangeText={setTitle}/><Field label="Customer description" value={description} onChangeText={setDescription} multiline/><Field label="Staff instructions" value={instructions} onChangeText={setInstructions} multiline/>{kind==='balance_reward'&&<Field label="Balance cost" value={cost} onChangeText={setCost} keyboardType="number-pad"/>}{['fixed_discount','bundle_price'].includes(benefit)&&<Field label={benefit==='bundle_price'?'Bundle price (£)':'Discount (£)'} value={amount} onChangeText={setAmount} keyboardType="decimal-pad"/>}{benefit==='percentage_discount'&&<Field label="Discount percentage" value={percentage} onChangeText={setPercentage} keyboardType="number-pad"/>}<Text style={s.sectionTitle}>Audience</Text><View style={s.wrap}>{(['everyone','members','tier'] as const).map(value=><Chip key={value} label={value} active={audience===value} onPress={()=>setAudience(value)}/>)}</View>{kind==='tier_perk'&&<><Field label="Uses per period" value={usageLimit} onChangeText={setUsageLimit} keyboardType="number-pad"/><Text style={s.sectionTitle}>Usage period</Text><View style={s.wrap}>{(['day','week','month'] as const).map(value=><Chip key={value} label={value} active={usagePeriod===value} onPress={()=>setUsagePeriod(value)}/>)}</View></>}<Field label="Starts at (ISO date/time, optional)" value={startsAt} onChangeText={setStartsAt} autoCapitalize="none"/><Field label="Ends at (ISO date/time, optional)" value={endsAt} onChangeText={setEndsAt} autoCapitalize="none"/><View style={[s.row,{marginTop:14}]}><View style={{flex:1}}><Text style={s.label}>Offer enabled</Text><Text style={s.meta}>Disable without deleting its audit history.</Text></View><Switch value={isActive} onValueChange={setIsActive}/></View>{benefit==='bundle_price'&&<><Text style={s.sectionTitle}>Meal-deal groups</Text><Text style={s.meta}>Tap each item to cycle: not included → group A → group B.</Text><View style={s.wrap}>{menu.map(item=><Chip key={item.id} label={`${groups[item.id]===1?'A · ':groups[item.id]===2?'B · ':''}${item.name}`} active={Boolean(groups[item.id])} onPress={()=>setGroups(current=>({...current,[item.id]:(((current[item.id]??0)+1)%3) as 0|1|2}))}/>)}</View></>}<Pressable disabled={busy} onPress={submit} style={[s.primary,busy&&s.disabled]}><Text style={s.primaryText}>{busy?'Saving…':'Save offer'}</Text></Pressable></ScrollView>;
+type Props = {
+  offer: LoyaltyOffer | null;
+  programs: LoyaltyProgram[];
+  menu: MenuChoice[];
+  busy: boolean;
+  onBack: () => void;
+  onSave: (input: LoyaltyOfferInput) => Promise<unknown>;
+};
+
+export function OfferForm({ offer, programs, menu, busy, onBack, onSave }: Props) {
+  const draft = useOfferDraft(offer, programs, menu);
+  const submit = async () => {
+    draft.setError(null);
+    try {
+      await onSave(draft.input());
+      onBack();
+    } catch (error) {
+      draft.setError(error instanceof Error ? error.message : 'Check the offer details.');
+    }
+  };
+  return (
+    <ScrollView contentContainerStyle={s.scroll}>
+      <RewardHeader title={offer ? 'Edit reward or deal' : 'Create reward or deal'} onBack={onBack} />
+      <RewardStepHeader current={draft.step} labels={offerSteps} />
+      <View style={draft.step === 0 ? undefined : s.hidden}>
+        <OfferSetupStep
+          kind={draft.kind}
+          benefit={draft.benefit}
+          programId={draft.programId}
+          tierId={draft.tierId}
+          programs={programs}
+          audience={draft.audience}
+          title={draft.title}
+          description={draft.description}
+          instructions={draft.instructions}
+          onKind={draft.selectKind}
+          onBenefit={draft.setBenefit}
+          onProgram={draft.selectProgram}
+          onTier={draft.setTierId}
+          onTitle={draft.setTitle}
+          onDescription={draft.setDescription}
+          onInstructions={draft.setInstructions}
+        />
+      </View>
+      <View style={draft.step === 1 ? undefined : s.hidden}>
+        <OfferBenefitStep
+          kind={draft.kind}
+          benefit={draft.benefit}
+          audience={draft.audience}
+          cost={draft.cost}
+          amount={draft.amount}
+          percentage={draft.percentage}
+          usageLimit={draft.usageLimit}
+          usagePeriod={draft.usagePeriod}
+          groups={draft.groups}
+          menu={menu}
+          onAudience={draft.setAudience}
+          onCost={draft.setCost}
+          onAmount={draft.setAmount}
+          onPercentage={draft.setPercentage}
+          onUsageLimit={draft.setUsageLimit}
+          onUsagePeriod={draft.setUsagePeriod}
+          onCycleGroup={draft.cycleGroup}
+        />
+      </View>
+      <View style={draft.step === 2 ? undefined : s.hidden}>
+        <OfferReviewStep
+          startsAt={draft.startsAt}
+          endsAt={draft.endsAt}
+          isActive={draft.isActive}
+          onStartsAt={draft.setStartsAt}
+          onEndsAt={draft.setEndsAt}
+          onActive={draft.setIsActive}
+        />
+      </View>
+      {draft.error ? (
+        <Text accessibilityRole="alert" style={s.error}>
+          {draft.error}
+        </Text>
+      ) : null}
+      <View style={s.row}>
+        {draft.step > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              draft.setError(null);
+              draft.setStep((current) => current - 1);
+            }}
+            style={[s.secondary, { flex: 1 }]}
+          >
+            <Text style={s.secondaryText}>Previous</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={draft.step === offerSteps.length - 1 ? submit : draft.advance}
+          style={[s.primary, { flex: 1 }, busy && s.disabled]}
+        >
+          <Text style={s.primaryText}>
+            {busy ? 'Saving…' : draft.step === offerSteps.length - 1 ? 'Save offer' : 'Continue'}
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
 }
-function Chip({label,active,onPress}:{label:string;active:boolean;onPress:()=>void}){return <Pressable onPress={onPress} style={[s.chip,active&&s.chipActive]}><Text style={[s.chipText,active&&s.chipTextActive]}>{label}</Text></Pressable>}
-function Field(props:React.ComponentProps<typeof TextInput>&{label:string}){const{label,...input}=props;return <View style={{marginTop:14}}><Text style={s.label}>{label}</Text><TextInput placeholderTextColor={rewardColors.muted} style={[s.field,input.multiline&&{minHeight:80,textAlignVertical:'top'}]} {...input}/></View>}

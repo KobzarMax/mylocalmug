@@ -1,6 +1,15 @@
 import { BusinessApplicationInput } from '../../lib/businessValidation';
 import { supabase } from '../../lib/supabase';
-import { Application, Business, BusinessLocation, DayHours, MemberRole, ReviewApplication, Workspace } from './types';
+
+import {
+  Application,
+  Business,
+  BusinessLocation,
+  DayHours,
+  MemberRole,
+  ReviewApplication,
+  Workspace,
+} from './types';
 
 export async function getPlatformAdminStatus(userId: string) {
   const result = await supabase
@@ -15,7 +24,9 @@ export async function getPlatformAdminStatus(userId: string) {
 export async function getReviewApplications(): Promise<ReviewApplication[]> {
   const result = await supabase
     .from('business_applications')
-    .select('id, applicant_id, status, trading_name, legal_name, description, category, contact_email, contact_phone, website_url, address, company_number, vat_number, rejection_reason, submitted_at')
+    .select(
+      'id, applicant_id, status, trading_name, legal_name, description, category, contact_email, contact_phone, website_url, address, company_number, vat_number, rejection_reason, submitted_at',
+    )
     .in('status', ['submitted', 'under_review'])
     .order('submitted_at', { ascending: true });
   if (result.error) throw result.error;
@@ -38,11 +49,15 @@ export async function getReviewApplications(): Promise<ReviewApplication[]> {
   }));
 }
 
-export async function reviewBusinessApplication(applicationId: string, approved: boolean, reason: string | null) {
+export async function reviewBusinessApplication(
+  applicationId: string,
+  approved: boolean,
+  reason: string | null,
+) {
   const result = await supabase.rpc('review_business_application', {
     target_application_id: applicationId,
     approve: approved,
-    review_reason: reason,
+    review_reason: reason ?? undefined,
   });
   if (result.error) throw result.error;
   return result.data as string | null;
@@ -63,7 +78,9 @@ export async function getBusinessWorkspace(userId: string): Promise<Workspace | 
   const [businessResult, locationResult] = await Promise.all([
     supabase
       .from('businesses')
-      .select('id, name, description, category, contact_email, contact_phone, website_url, address, logo_url, header_url, status, is_published')
+      .select(
+        'id, name, description, category, contact_email, contact_phone, website_url, address, logo_url, header_url, status, is_published',
+      )
       .eq('id', businessId)
       .single(),
     supabase
@@ -91,7 +108,12 @@ export async function getBusinessWorkspace(userId: string): Promise<Workspace | 
     isPublished: row.is_published,
   };
   const location: BusinessLocation | null = locationResult.data
-    ? { id: locationResult.data.id, address: locationResult.data.address, phone: locationResult.data.phone, timezone: locationResult.data.timezone }
+    ? {
+        id: locationResult.data.id,
+        address: locationResult.data.address,
+        phone: locationResult.data.phone,
+        timezone: locationResult.data.timezone,
+      }
     : null;
   return { business, location, role: membership.data.role as MemberRole };
 }
@@ -99,7 +121,9 @@ export async function getBusinessWorkspace(userId: string): Promise<Workspace | 
 export async function getBusinessApplication(userId: string): Promise<Application | null> {
   const result = await supabase
     .from('business_applications')
-    .select('id, status, trading_name, legal_name, description, category, contact_email, contact_phone, website_url, address, company_number, vat_number, rejection_reason')
+    .select(
+      'id, status, trading_name, legal_name, description, category, contact_email, contact_phone, website_url, address, company_number, vat_number, rejection_reason',
+    )
     .eq('applicant_id', userId)
     .maybeSingle();
   if (result.error) throw result.error;
@@ -137,17 +161,32 @@ const applicationPayload = (userId: string, input: BusinessApplicationInput) => 
   updated_at: new Date().toISOString(),
 });
 
-export async function saveBusinessApplication(userId: string, applicationId: string, input: BusinessApplicationInput) {
+export async function saveBusinessApplication(
+  userId: string,
+  applicationId: string,
+  input: BusinessApplicationInput,
+) {
   const payload = applicationPayload(userId, input);
   const result = applicationId
-    ? await supabase.from('business_applications').update(payload).eq('id', applicationId).select('id').single()
-    : await supabase.from('business_applications').insert({ ...payload, status: 'draft' }).select('id').single();
+    ? await supabase
+        .from('business_applications')
+        .update(payload)
+        .eq('id', applicationId)
+        .select('id')
+        .single()
+    : await supabase
+        .from('business_applications')
+        .insert({ ...payload, status: 'draft' })
+        .select('id')
+        .single();
   if (result.error) throw result.error;
   return result.data.id as string;
 }
 
 export async function submitBusinessApplication(applicationId: string) {
-  const { error } = await supabase.rpc('submit_business_application', { target_application_id: applicationId });
+  const { error } = await supabase.rpc('submit_business_application', {
+    target_application_id: applicationId,
+  });
   if (error) throw error;
 }
 
@@ -163,25 +202,36 @@ export async function getBusinessHours(locationId: string) {
 
 export async function saveBusinessProfile(
   workspace: Workspace,
-  input: { name: string; description: string; category: string; contactEmail: string; contactPhone: string; websiteUrl: string; address: string },
+  input: {
+    name: string;
+    description: string;
+    category: string;
+    contactEmail: string;
+    contactPhone: string;
+    websiteUrl: string;
+    address: string;
+  },
   published: boolean,
   hours: DayHours[],
   media: { logoUrl: string | null; headerUrl: string | null },
 ) {
-  const businessResult = await supabase.from('businesses').update({
-    name: input.name,
-    description: input.description,
-    category: input.category,
-    contact_email: input.contactEmail,
-    contact_phone: input.contactPhone,
-    website_url: input.websiteUrl,
-    address: input.address,
-    logo_url: media.logoUrl,
-    header_url: media.headerUrl,
-    is_published: published,
-    status: published ? 'active' : workspace.business.status,
-    updated_at: new Date().toISOString(),
-  }).eq('id', workspace.business.id);
+  const businessResult = await supabase
+    .from('businesses')
+    .update({
+      name: input.name,
+      description: input.description,
+      category: input.category,
+      contact_email: input.contactEmail,
+      contact_phone: input.contactPhone,
+      website_url: input.websiteUrl,
+      address: input.address,
+      logo_url: media.logoUrl,
+      header_url: media.headerUrl,
+      is_published: published,
+      status: published ? 'active' : workspace.business.status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', workspace.business.id);
   if (businessResult.error) throw businessResult.error;
 
   const locationPayload = {
@@ -193,16 +243,23 @@ export async function saveBusinessProfile(
     updated_at: new Date().toISOString(),
   };
   const locationResult = workspace.location
-    ? await supabase.from('business_locations').update(locationPayload).eq('id', workspace.location.id).select('id').single()
+    ? await supabase
+        .from('business_locations')
+        .update(locationPayload)
+        .eq('id', workspace.location.id)
+        .select('id')
+        .single()
     : await supabase.from('business_locations').insert(locationPayload).select('id').single();
   if (locationResult.error) throw locationResult.error;
 
-  const hoursResult = await supabase.from('business_hours').upsert(hours.map((day) => ({
-    location_id: locationResult.data.id,
-    day_of_week: day.dayOfWeek,
-    opens_at: day.isClosed ? null : day.opensAt,
-    closes_at: day.isClosed ? null : day.closesAt,
-    is_closed: day.isClosed,
-  })));
+  const hoursResult = await supabase.from('business_hours').upsert(
+    hours.map((day) => ({
+      location_id: locationResult.data.id,
+      day_of_week: day.dayOfWeek,
+      opens_at: day.isClosed ? null : day.opensAt,
+      closes_at: day.isClosed ? null : day.closesAt,
+      is_closed: day.isClosed,
+    })),
+  );
   if (hoursResult.error) throw hoursResult.error;
 }

@@ -1,7 +1,15 @@
-import { useInfiniteQuery, useIsRestoring, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useIsRestoring,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useState } from 'react';
-import { requireOnline } from '../../lib/query/config';
+
 import { useNetworkStatus } from '../../lib/query/QueryProvider';
+import { requireOnline } from '../../lib/query/config';
+
 import {
   followBusiness,
   getFollowState,
@@ -12,8 +20,8 @@ import {
   unfollowBusiness,
 } from './api';
 import { registerForEventNotifications } from './device';
-import { ContentCursor, FeedFilter } from './types';
 import { messageFrom } from './errors';
+import { ContentCursor, FeedFilter } from './types';
 
 export const contentKeys = {
   all: ['content'] as const,
@@ -21,18 +29,25 @@ export const contentKeys = {
   feed: (accountId: string, followedOnly: boolean, filter: FeedFilter, businessId: string | null) =>
     [...contentKeys.feeds(), followedOnly ? accountId : 'public', followedOnly, filter, businessId] as const,
   detail: (contentId: string) => [...contentKeys.all, 'detail', contentId] as const,
-  follow: (accountId: string, businessId: string) => [...contentKeys.all, 'follow', accountId, businessId] as const,
+  follow: (accountId: string, businessId: string) =>
+    [...contentKeys.all, 'follow', accountId, businessId] as const,
 };
 
-export function usePublicContentFeed(accountId: string, followedOnly: boolean, filter: FeedFilter, businessId?: string | null) {
+export function usePublicContentFeed(
+  accountId: string,
+  followedOnly: boolean,
+  filter: FeedFilter,
+  businessId?: string | null,
+) {
   const query = useInfiniteQuery({
     queryKey: contentKeys.feed(accountId, followedOnly, filter, businessId ?? null),
-    queryFn: ({ pageParam }) => getPublicContentPage({
-      businessId,
-      kind: filter === 'all' ? null : filter,
-      followedOnly,
-      cursor: pageParam,
-    }),
+    queryFn: ({ pageParam }) =>
+      getPublicContentPage({
+        businessId,
+        kind: filter === 'all' ? null : filter,
+        followedOnly,
+        cursor: pageParam,
+      }),
     initialPageParam: null as ContentCursor | null,
     getNextPageParam: (page) => page.nextCursor,
     maxPages: 2,
@@ -68,7 +83,11 @@ export function useContentDetail(contentId: string | null) {
   return {
     item: query.data ?? null,
     loading: query.isLoading || isRestoring,
-    error: query.error?.message ?? (query.data === null && !query.isLoading ? 'This story is unavailable or has not been published.' : null),
+    error:
+      query.error?.message ??
+      (query.data === null && !query.isLoading
+        ? 'This story is unavailable or has not been published.'
+        : null),
     isOnline,
     isOffline: !isOnline,
     isRestoring,
@@ -99,19 +118,42 @@ export function useBusinessFollow(accountId: string, businessId: string) {
     await registerPushDevice(registration.token, registration.platform);
     setNotice('Event alerts are enabled for this device.');
   };
-  const followMutation = useMutation({ mutationFn: async () => { requireOnline(isOnline); await followBusiness(businessId); }, onSuccess: refresh });
-  const alertsMutation = useMutation({ mutationFn: async (enabled: boolean) => { requireOnline(isOnline); await setBusinessEventAlerts(businessId, enabled); }, onSuccess: refresh });
-  const unfollowMutation = useMutation({ mutationFn: async () => { requireOnline(isOnline); await unfollowBusiness(businessId); }, onSuccess: refresh });
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      requireOnline(isOnline);
+      await followBusiness(businessId);
+    },
+    onSuccess: refresh,
+  });
+  const alertsMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      requireOnline(isOnline);
+      await setBusinessEventAlerts(businessId, enabled);
+    },
+    onSuccess: refresh,
+  });
+  const unfollowMutation = useMutation({
+    mutationFn: async () => {
+      requireOnline(isOnline);
+      await unfollowBusiness(businessId);
+    },
+    onSuccess: refresh,
+  });
 
   const follow = async () => {
     setNotice(null);
     await followMutation.mutateAsync();
-    await enableDevice().catch((caught) => setNotice(messageFrom(caught, 'Followed, but notifications could not be enabled.')));
+    await enableDevice().catch((caught) =>
+      setNotice(messageFrom(caught, 'Followed, but notifications could not be enabled.')),
+    );
   };
   const setAlerts = async (enabled: boolean) => {
     setNotice(null);
     await alertsMutation.mutateAsync(enabled);
-    if (enabled) await enableDevice().catch((caught) => setNotice(messageFrom(caught, 'Alerts are saved, but this device is not registered.')));
+    if (enabled)
+      await enableDevice().catch((caught) =>
+        setNotice(messageFrom(caught, 'Alerts are saved, but this device is not registered.')),
+      );
   };
   return {
     following: state.data?.following ?? false,

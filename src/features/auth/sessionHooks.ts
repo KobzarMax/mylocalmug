@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import {
-  getAccountProfile,
-  getCurrentSession,
-  signOutAccount,
-  subscribeToSessionChanges,
-} from './api';
+import { useCallback, useEffect, useState } from 'react';
+
+import { safeErrorMessage } from '../../lib/errors';
+
+import { getAccountProfile, getCurrentSession, signOutAccount, subscribeToSessionChanges } from './api';
 import { AccountProfile } from './types';
 
 export function useAuthenticatedAccount() {
@@ -18,16 +16,25 @@ export function useAuthenticatedAccount() {
     let active = true;
     let receivedSessionChange = false;
     getCurrentSession()
-      .then((current) => { if (active && !receivedSessionChange) setSession(current); })
-      .catch((caught) => { if (active) setProfileError(messageFrom(caught, 'Could not restore the session.')); })
-      .finally(() => { if (active) setLoadingSession(false); });
+      .then((current) => {
+        if (active && !receivedSessionChange) setSession(current);
+      })
+      .catch((caught) => {
+        if (active) setProfileError(messageFrom(caught, 'Could not restore the session.'));
+      })
+      .finally(() => {
+        if (active) setLoadingSession(false);
+      });
     const unsubscribe = subscribeToSessionChanges((nextSession) => {
       if (!active) return;
       receivedSessionChange = true;
       setSession(nextSession);
       if (!nextSession) setProfile(null);
     });
-    return () => { active = false; unsubscribe(); };
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const loadProfile = useCallback(async () => {
@@ -43,12 +50,17 @@ export function useAuthenticatedAccount() {
     }
   }, [session]);
 
-  useEffect(() => { loadProfile(); }, [loadProfile]);
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const signOut = async () => {
     setProfileError(null);
-    try { await signOutAccount(); }
-    catch (caught) { setProfileError(messageFrom(caught, 'Could not sign out.')); }
+    try {
+      await signOutAccount();
+    } catch (caught) {
+      setProfileError(messageFrom(caught, 'Could not sign out.'));
+    }
   };
 
   return {
@@ -63,5 +75,5 @@ export function useAuthenticatedAccount() {
 }
 
 function messageFrom(caught: unknown, fallback: string) {
-  return caught instanceof Error && caught.message ? caught.message : fallback;
+  return safeErrorMessage(caught, fallback);
 }

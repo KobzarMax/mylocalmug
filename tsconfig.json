@@ -1,7 +1,10 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": ["jest"]
   },
-  "exclude": ["supabase/functions"]
+  "exclude": ["supabase/functions", "experimental"]
 }

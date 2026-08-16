@@ -1,6 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
-import { inferProfileImageMime, validateProfileImageBytes, validateProfileImageMetadata } from '../../lib/profileImage';
+
+import {
+  inferProfileImageMime,
+  validateProfileImageBytes,
+  validateProfileImageMetadata,
+} from '../../lib/profileImage';
 import { supabase } from '../../lib/supabase';
+
 import { ContentCover } from './types';
 
 const bucket = 'content-media';
@@ -38,4 +44,3 @@ export async function removeContentCover(businessId: string, postId: string, pat
   const result = await supabase.storage.from(bucket).remove([path]);
   if (result.error) throw result.error;
 }
-

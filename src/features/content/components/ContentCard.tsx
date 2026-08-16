@@ -1,44 +1,91 @@
-import React from 'react';
-import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Pressable, Text, View } from 'react-native';
+
 import { CachedImage } from '../../../components/CachedImage';
 import { palette } from '../../../lib/design';
 import { styles } from '../styles';
 import { ContentItem, ContentSummary, publicationStateOf } from '../types';
 
-export function ContentCard({ item, onPress, management = false }: { item: ContentItem | ContentSummary; onPress: () => void; management?: boolean }) {
+export function ContentCard({
+  item,
+  onPress,
+  management = false,
+}: {
+  item: ContentItem | ContentSummary;
+  onPress: () => void;
+  management?: boolean;
+}) {
   const state = publicationStateOf(item);
-  const eventMeta = item.kind === 'event' && item.eventStartsAt
-    ? formatEventDate(item.eventStartsAt, item.eventAllDay, item.eventTimezone)
-    : null;
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}>
-    {(item.coverPath || item.coverUrl) && <CachedImage uri={item.coverUrl} cacheKey={item.coverPath ?? item.coverUrl ?? item.id} style={styles.cardImage} accessibilityLabel={`${item.title} cover`} />}
-    <View style={styles.cardBody}>
-      <View style={styles.cardTop}>
-        {item.businessLogoUrl ? <CachedImage uri={item.businessLogoUrl} cacheKey={item.businessLogoUrl} style={styles.logo} accessibilityLabel={`${item.businessName} logo`} /> : <View style={[styles.logo, styles.logoEmpty]}><Ionicons name="cafe" size={15} color={palette.green} /></View>}
-        <Text style={styles.businessName}>{item.businessName}</Text>
-        <View style={[styles.badge, (item.eventCancelledAt || state === 'archived') && styles.badgeWarning]}>
-          <Text style={styles.badgeText}>{item.eventCancelledAt ? 'cancelled' : management ? state : item.kind}</Text>
+  const eventMeta =
+    item.kind === 'event' && item.eventStartsAt
+      ? formatEventDate(item.eventStartsAt, item.eventAllDay, item.eventTimezone)
+      : null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
+    >
+      {(item.coverPath || item.coverUrl) && (
+        <CachedImage
+          uri={item.coverUrl}
+          cacheKey={item.coverPath ?? item.coverUrl ?? item.id}
+          style={styles.cardImage}
+          accessibilityLabel={`${item.title} cover`}
+        />
+      )}
+      <View style={styles.cardBody}>
+        <View style={styles.cardTop}>
+          {item.businessLogoUrl ? (
+            <CachedImage
+              uri={item.businessLogoUrl}
+              cacheKey={item.businessLogoUrl}
+              style={styles.logo}
+              accessibilityLabel={`${item.businessName} logo`}
+            />
+          ) : (
+            <View style={[styles.logo, styles.logoEmpty]}>
+              <Ionicons name="cafe" size={15} color={palette.green} />
+            </View>
+          )}
+          <Text style={styles.businessName}>{item.businessName}</Text>
+          <View
+            style={[styles.badge, (item.eventCancelledAt || state === 'archived') && styles.badgeWarning]}
+          >
+            <Text style={styles.badgeText}>
+              {item.eventCancelledAt ? 'cancelled' : management ? state : item.kind}
+            </Text>
+          </View>
         </View>
+        {item.isPinned && <Text style={styles.overline}>Pinned {item.kind}</Text>}
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.excerpt} numberOfLines={3}>
+          {item.excerpt}
+        </Text>
+        <Text style={styles.meta}>
+          {eventMeta ??
+            `${formatDate(item.publishedAt ?? item.updatedAt)} · ${'readingMinutes' in item ? item.readingMinutes : readingMinutes(item.bodyText)} min read`}{' '}
+          · By {item.authorDisplayName}
+        </Text>
       </View>
-      {item.isPinned && <Text style={styles.overline}>Pinned {item.kind}</Text>}
-      <Text style={styles.cardTitle}>{item.title}</Text>
-      <Text style={styles.excerpt} numberOfLines={3}>{item.excerpt}</Text>
-      <Text style={styles.meta}>{eventMeta ?? `${formatDate(item.publishedAt ?? item.updatedAt)} · ${'readingMinutes' in item ? item.readingMinutes : readingMinutes(item.bodyText)} min read`} · By {item.authorDisplayName}</Text>
-    </View>
-  </Pressable>;
+    </Pressable>
+  );
 }
 
 export function formatEventDate(value: string, allDay: boolean, timezone: string | null) {
   return new Intl.DateTimeFormat(undefined, {
-    weekday: 'short', month: 'short', day: 'numeric',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
     ...(allDay ? {} : { hour: 'numeric', minute: '2-digit' }),
     ...(timezone ? { timeZone: timezone } : {}),
   }).format(new Date(value));
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(
+    new Date(value),
+  );
 }
 
 function readingMinutes(body: string) {

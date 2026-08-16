@@ -1,10 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { focusManager, onlineManager, QueryClient, useIsRestoring, useQueryClient } from '@tanstack/react-query';
+import {
+  focusManager,
+  onlineManager,
+  QueryClient,
+  useIsRestoring,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import React, { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
+import { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+
 import {
   QUERY_CACHE_BUSTER,
   QUERY_CACHE_MAX_AGE,
@@ -43,8 +50,12 @@ export function LocalQueryProvider({ children }: PropsWithChildren) {
       setIsOnline(connected);
       onlineManager.setOnline(connected);
     };
-    void NetInfo.fetch().then((state) => update(Boolean(state.isConnected && state.isInternetReachable !== false)));
-    return NetInfo.addEventListener((state) => update(Boolean(state.isConnected && state.isInternetReachable !== false)));
+    void NetInfo.fetch().then((state) =>
+      update(Boolean(state.isConnected && state.isInternetReachable !== false)),
+    );
+    return NetInfo.addEventListener((state) =>
+      update(Boolean(state.isConnected && state.isInternetReachable !== false)),
+    );
   }, []);
 
   useEffect(() => {
@@ -53,17 +64,19 @@ export function LocalQueryProvider({ children }: PropsWithChildren) {
     return () => subscription.remove();
   }, []);
 
-  return <PersistQueryClientProvider
-    client={queryClient}
-    persistOptions={{
-      persister,
-      maxAge: QUERY_CACHE_MAX_AGE,
-      buster: QUERY_CACHE_BUSTER,
-      dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
-    }}
-  >
-    <NetworkContext.Provider value={{ isOnline, isOffline: !isOnline }}>{children}</NetworkContext.Provider>
-  </PersistQueryClientProvider>;
+  return (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: QUERY_CACHE_MAX_AGE,
+        buster: QUERY_CACHE_BUSTER,
+        dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+      }}
+    >
+      <NetworkContext.Provider value={{ isOnline, isOffline: !isOnline }}>{children}</NetworkContext.Provider>
+    </PersistQueryClientProvider>
+  );
 }
 
 export function useNetworkStatus() {

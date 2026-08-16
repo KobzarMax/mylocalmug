@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabase';
-import { MenuCategoryInput, MenuItemInput } from './validation';
+
 import { MenuCategory, MenuData, MenuItem, MenuPhoto } from './types';
+import { MenuCategoryInput, MenuItemInput } from './validation';
 
 const menuMediaBucket = 'menu-media';
 
@@ -34,19 +35,25 @@ export async function saveMenuCategory(
 ) {
   const payload = { business_id: businessId, name: input.name, sort_order: sortOrder };
   const result = categoryId
-    ? await supabase.from('menu_categories').update(payload).eq('id', categoryId).eq('business_id', businessId)
+    ? await supabase
+        .from('menu_categories')
+        .update(payload)
+        .eq('id', categoryId)
+        .eq('business_id', businessId)
     : await supabase.from('menu_categories').insert(payload);
   if (result.error) throw result.error;
 }
 
 export async function saveMenuCategoryOrder(categories: MenuCategory[]) {
   if (categories.length === 0) return;
-  const result = await supabase.from('menu_categories').upsert(categories.map((category, index) => ({
-    id: category.id,
-    business_id: category.businessId,
-    name: category.name,
-    sort_order: index,
-  })));
+  const result = await supabase.from('menu_categories').upsert(
+    categories.map((category, index) => ({
+      id: category.id,
+      business_id: category.businessId,
+      name: category.name,
+      sort_order: index,
+    })),
+  );
   if (result.error) throw result.error;
 }
 
@@ -69,7 +76,7 @@ export async function saveMenuItem(
     category_id: input.categoryId,
     name: input.name,
     description: input.description,
-    price: input.price,
+    price: Number(input.price),
     photo_url: photoUrl,
     is_available: input.isAvailable,
   };
@@ -80,8 +87,7 @@ export async function saveMenuItem(
 }
 
 export async function deleteMenuItem(businessId: string, itemId: string) {
-  const result = await supabase.from('menu_items').delete()
-    .eq('business_id', businessId).eq('id', itemId);
+  const result = await supabase.from('menu_items').delete().eq('business_id', businessId).eq('id', itemId);
   if (result.error) throw result.error;
 }
 
@@ -110,7 +116,11 @@ function getOwnedMenuPhotoPath(businessId: string, pathOrUrl: string) {
   const markerIndex = pathOrUrl.indexOf(marker);
   const encodedPath = markerIndex >= 0 ? pathOrUrl.slice(markerIndex + marker.length) : pathOrUrl;
   let path: string;
-  try { path = decodeURIComponent(encodedPath); } catch { return null; }
+  try {
+    path = decodeURIComponent(encodedPath);
+  } catch {
+    return null;
+  }
   return path.startsWith(`${businessId}/items/`) ? path : null;
 }
 

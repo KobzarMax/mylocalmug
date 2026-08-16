@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { inferProfileImageMime, validateProfileImageBytes, validateProfileImageMetadata } from '../../lib/profileImage';
+import { useMemo, useState } from 'react';
+
+import { safeErrorMessage } from '../../lib/errors';
+import {
+  inferProfileImageMime,
+  validateProfileImageBytes,
+  validateProfileImageMetadata,
+} from '../../lib/profileImage';
+
 import {
   deleteMenuCategory,
   deleteMenuItem,
@@ -15,46 +23,27 @@ import { CategoryDirection, MenuCategory, MenuItem, MenuPhoto } from './types';
 import { menuCategoryInputSchema, menuItemInputSchema } from './validation';
 
 export function useMenu(businessId: string) {
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const menu = await getBusinessMenu(businessId);
-      setCategories(menu.categories);
-      setItems(menu.items);
-    } catch (caught) {
-      setError(messageFrom(caught, 'Could not load the menu.'));
-    } finally {
-      setLoading(false);
-    }
-  }, [businessId]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
+  const queryKey = ['business-menu', businessId] as const;
+  const client = useQueryClient();
+  const query = useQuery({ queryKey, queryFn: () => getBusinessMenu(businessId), meta: { persist: false } });
+  const mutation = useMutation({
+    mutationFn: (action: () => Promise<void>) => action(),
+    onSuccess: () => client.invalidateQueries({ queryKey }),
+  });
   const runMutation = async (action: () => Promise<void>) => {
-    setBusy(true);
-    setError(null);
     try {
-      await action();
-      await refresh();
+      await mutation.mutateAsync(action);
     } catch (caught) {
       const message = messageFrom(caught, 'Could not update the menu.');
-      setError(message);
       throw new Error(message);
-    } finally {
-      setBusy(false);
     }
   };
 
-  const removeCategory = (category: MenuCategory) => runMutation(
-    () => deleteMenuCategory(businessId, category.id),
-  );
+  const categories = query.data?.categories ?? [];
+  const items = query.data?.items ?? [];
+
+  const removeCategory = (category: MenuCategory) =>
+    runMutation(() => deleteMenuCategory(businessId, category.id));
 
   const moveCategory = (categoryId: string, direction: CategoryDirection) => {
     const currentIndex = categories.findIndex((category) => category.id === categoryId);
@@ -65,12 +54,27 @@ export function useMenu(businessId: string) {
     return runMutation(() => saveMenuCategoryOrder(ordered));
   };
 
-  const removeItem = (item: MenuItem) => runMutation(async () => {
-    await deleteMenuItem(businessId, item.id);
-    await removeMenuPhoto(businessId, item.photoUrl).catch(() => undefined);
-  });
+  const removeItem = (item: MenuItem) =>
+    runMutation(async () => {
+      await deleteMenuItem(businessId, item.id);
+      await removeMenuPhoto(businessId, item.photoUrl).catch(() => undefined);
+    });
 
-  return { categories, items, loading, busy, error, refresh, removeCategory, moveCategory, removeItem };
+  return {
+    categories,
+    items,
+    loading: query.isLoading,
+    busy: mutation.isPending,
+    error: query.error
+      ? messageFrom(query.error, 'Could not load the menu.')
+      : mutation.error
+        ? messageFrom(mutation.error, 'Could not update the menu.')
+        : null,
+    refresh: () => client.invalidateQueries({ queryKey }),
+    removeCategory,
+    moveCategory,
+    removeItem,
+  };
 }
 
 export function useMenuCategoryEditor(
@@ -87,7 +91,12 @@ export function useMenuCategoryEditor(
     if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Category name is invalid.');
     setBusy(true);
     try {
-      await saveMenuCategory(businessId, category?.id ?? null, parsed.data, category?.sortOrder ?? nextSortOrder);
+      await saveMenuCategory(
+        businessId,
+        category?.id ?? null,
+        parsed.data,
+        category?.sortOrder ?? nextSortOrder,
+      );
       onSaved();
     } finally {
       setBusy(false);
@@ -104,7 +113,7 @@ export function useMenuItemEditor(
   onSaved: () => void,
 ) {
   const [form, setForm] = useState<MenuItemFormState>({
-    categoryId: item ? item.categoryId : categories[0]?.id ?? null,
+    categoryId: item ? item.categoryId : (categories[0]?.id ?? null),
     name: item?.name ?? '',
     description: item?.description ?? '',
     price: item ? item.price.toFixed(2) : '',
@@ -156,7 +165,7 @@ export function useMenuItemEditor(
     }
   };
 
-  const previewUrl = photo?.uri ?? (photoRemoved ? null : item?.photoUrl ?? null);
+  const previewUrl = photo?.uri ?? (photoRemoved ? null : (item?.photoUrl ?? null));
   return { form, update, previewUrl, busy, pickPhoto, clearPhoto, submit };
 }
 
@@ -195,5 +204,5 @@ export function useItemsByCategory(items: MenuItem[]) {
 }
 
 function messageFrom(caught: unknown, fallback: string) {
-  return caught instanceof Error && caught.message ? caught.message : fallback;
+  return safeErrorMessage(caught, fallback);
 }

@@ -5,10 +5,10 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 ## What exists now
 
 - A runnable Expo SDK 57 TypeScript app
-- Role selection for customer and business experiences
+- Expo Router stacks with protected authentication, customer, and business route groups
 - Live customer discovery, coffee-shop detail, published menus, news/events, reward wallet, and profile screens
-- Business dashboard with menu, post, reward, and event entry points
-- A Supabase client configured for React Native session persistence
+- Business dashboard with a real setup checklist and permission-controlled profile, team, menu, content, rewards, and legal entry points
+- A generated Supabase `Database` type and typed client configured for React Native session persistence
 - Native email confirmation with a persisted pending state, resend cooldown, copied OTP entry, and `localmug://auth/confirm` callback handling
 - An initial SQL migration with profiles, businesses, menus, posts/events, memberships, reviews, and flexible loyalty rewards
 - Drizzle schema and CLI scripts for typed table migrations
@@ -25,6 +25,8 @@ An Expo + Supabase mobile app for connecting independent coffee shops with local
 - Live customer story feeds, shop following preferences, event push-delivery Edge Functions, notification deep links, and native calendar export
 - A 24-hour, read-only customer cache with offline shop, menu, story, event, and disk-cached image access
 - A private UK legal-profile workflow where finance staff prepare drafts and owners/admins approve them
+- Shared accessible UI primitives, feature error boundaries, ESLint, Prettier, and Jest Expo component/route tests
+- Postponed payment, checkout, order, refund, and Terminal experiments isolated from default application routes and bundles
 
 ## Run locally
 
@@ -33,7 +35,7 @@ cp .env.example .env
 pnpm start
 ```
 
-Then scan the QR code with Expo Go, or press `i`, `a`, or `w` for another target. The current UI works without filling in `.env`. Expo Go supports the ordinary app flow, but the business **Till** tab displays an unavailable state because Stripe Terminal requires a custom native development build.
+Add the public Supabase URL and publishable/anon key before starting the app. Missing values now fail with a clear configuration error instead of silently creating a placeholder client. Then scan the QR code with Expo Go, or press `i`, `a`, or `w` for another target. Payments and Terminal are postponed and are not present in the live navigation.
 
 To connect Supabase:
 
@@ -161,7 +163,7 @@ TanStack Query persists only explicitly marked customer-reading queries to Async
 
 1. Apply Drizzle migration `0005_uk_legal_profiles.sql` before Supabase migration `008_uk_legal_profiles.sql`.
 2. Run `supabase/tests/008_uk_legal_profiles_rls.sql`. It must finish without an assertion error and rolls back every fixture.
-3. Open **Business portal → Payments** as a finance member, complete a draft, and submit it.
+3. Open **Business portal → Legal information** as a finance member, complete a draft, and submit it.
 4. Confirm manager, barista, viewer, suspended-member, applicant, platform-admin-only, and anonymous accounts cannot open or read the legal profile.
 5. Open the submission as an owner/admin, return it with a note, then resubmit and approve it using the authority-and-accuracy attestation.
 6. Edit the approved profile as finance and confirm approval is removed and the profile returns to draft.
@@ -169,21 +171,9 @@ TanStack Query persists only explicitly marked customer-reading queries to Async
 
 Local Mug stores ordinary UK business identity details only. It does not store UTRs, bank details, personal identity documents, directors, beneficial owners, dates of birth, National Insurance numbers, or future provider-onboarding answers. The current checks validate format and owner approval; they do not claim Companies House, HMRC, Stripe, or PayPal verification.
 
-### Payments deployment
+### Payments status
 
-1. Apply Drizzle migration `0006_open_joystick.sql`, then Supabase migration `009_payments_orders.sql`.
-2. Run `supabase/tests/009_payments_orders_rls.sql` in the SQL editor; it is transactional and rolls back its fixtures.
-3. Deploy `payments-api` with JWT verification enabled. Deploy `stripe-webhook`, `paypal-webhook`, `payment-return`, and `process-payment-jobs` without Supabase JWT verification; those endpoints perform their own signature/state/cron authentication.
-4. Configure Edge Function secrets: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_PARTNER_MERCHANT_ID`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENVIRONMENT`, `PAYMENT_RETURN_URL`, `PAYMENT_CRON_SECRET`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
-5. Set `PAYMENT_RETURN_URL` to the public HTTPS URL of `payment-return`. Register the Stripe Connect webhook and PayPal webhook against their respective functions.
-6. Schedule `process-payment-jobs` every minute using Supabase Cron/Vault and send `x-cron-secret` with the configured secret.
-7. Create a new development build. Stripe Terminal, Apple Pay, and Google Pay cannot be accepted in Expo Go.
-
-The Stripe Terminal package is loaded only after an eligible native build opens the **Till** tab. It is not initialized in Expo Go, so the rest of the app can start and remain usable there.
-
-Provider secrets never enter Expo or application tables. Stripe uses connected-account direct charges with no Local Mug application fee. PayPal is shown only for ready sellers. Customer payments are captured immediately, shops receive ten minutes to confirm, and rejection/expiry creates an idempotent full-refund job.
-
-Pending external gates are PayPal multiparty approval/live credentials, Apple Developer Merchant ID and Apple Pay certificate, Google Pay production acceptance, Stripe Connect live review, and physical WisePad 3 acceptance.
+Payments, checkout, orders, refunds, and Terminal are postponed while UK provider and business-owned terminal options are researched. The existing Stripe-first code and applied `0006`/`009` database foundation are experimental: they are excluded from live routes and default bundles and must not be deployed as the production payment architecture. When this work resumes, use new numbered migrations and a provider-neutral adapter; do not rewrite the applied migrations.
 
 ### Rewards and loyalty deployment
 
@@ -235,7 +225,7 @@ Mobile features call Supabase through their feature-scoped `api.ts` modules. Aut
 - Supabase Postgres with generated TypeScript database types
 - Supabase Storage for business covers, logos, news images, and menu photos
 - Expo Notifications for followed-shop event reminders, changes, and cancellations
-- Expo Location for nearby shops; PostGIS is a later optimization
+- Location-based discovery and PostGIS are future work; the app does not request location permission today
 
 ### Key model choices
 
@@ -277,10 +267,10 @@ Mobile features call Supabase through their feature-scoped `api.ts` modules. Aut
 
 ## Recommended next implementation slice
 
-Deploy and accept the news/events slice:
+Accept the remediated app and deploy rewards:
 
-1. Apply Drizzle `0004`, Supabase `005`, and the transactional `005` RLS test.
-2. Deploy the notification functions, configure EAS/APNs/FCM and Vault, then apply Supabase `006`.
-3. Complete owner/admin/manager and denied-role acceptance with separate accounts.
-4. Complete physical-device notification, deep-link, opt-out, and calendar acceptance.
-5. Record the results in `PLANS.md`, then continue with customer menu integration or routing/workspace selection.
+1. Run the customer and business journeys on iOS and Android development builds, including large text, VoiceOver/TalkBack, offline recovery, camera denial, deep links, and interrupted forms.
+2. Check small phone, large phone, tablet, and narrow web layouts and record any screen-specific defects before adding new product scope.
+3. Apply Drizzle `0007`, Supabase `010`, and the transactional `010` rewards test if they are not already recorded as successful.
+4. Complete staff/customer earning and redemption acceptance on physical devices, including expired, replayed, and simultaneous QR attempts.
+5. Record results in `PLANS.md`; then address the existing menu/content/legal database acceptance items or add multi-business workspace selection.

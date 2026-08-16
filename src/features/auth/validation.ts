@@ -1,9 +1,6 @@
 import { z } from 'zod';
-import {
-  displayNameSchema,
-  profileEmailSchema,
-  profilePasswordSchema,
-} from '../../lib/profileValidation';
+
+import { displayNameSchema, profileEmailSchema, profilePasswordSchema } from '../../lib/profileValidation';
 
 export const signInSchema = z.object({
   email: profileEmailSchema,
@@ -16,7 +13,8 @@ export const registrationSchema = z.object({
   password: profilePasswordSchema,
 });
 
-export const emailOtpSchema = z.string()
+export const emailOtpSchema = z
+  .string()
   .trim()
   .regex(/^\d{6,8}$/, 'Enter the numeric code from your confirmation email.');
 

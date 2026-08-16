@@ -11,7 +11,7 @@ export type RichTextNode = {
   type: string;
   text?: string;
   attrs?: Record<string, unknown>;
-  marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
   content?: RichTextNode[];
 };
 
@@ -73,7 +73,9 @@ export type PushDeviceRegistration = { token: string; platform: 'ios' | 'android
 
 export const emptyDocument = (): RichTextDocument => ({ type: 'doc', content: [] });
 
-export const publicationStateOf = (item: Pick<ContentItem, 'publishedAt' | 'archivedAt'>): PublicationState => {
+export const publicationStateOf = (
+  item: Pick<ContentItem, 'publishedAt' | 'archivedAt'>,
+): PublicationState => {
   if (item.archivedAt) return 'archived';
   if (!item.publishedAt) return 'draft';
   return new Date(item.publishedAt).getTime() > Date.now() ? 'scheduled' : 'published';

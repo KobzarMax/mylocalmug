@@ -30,10 +30,11 @@ export type CreatedInvitation = {
   expiresAt: string;
 };
 
-export const assignableRoles: { value: Exclude<MemberRole, 'owner'>; label: string; description: string }[] = [
-  { value: 'admin', label: 'Admin', description: 'Manages the business and team.' },
-  { value: 'manager', label: 'Manager', description: 'Manages profile, menu, content, and rewards.' },
-  { value: 'finance', label: 'Finance', description: 'Views payments, refunds, and reporting.' },
-  { value: 'barista', label: 'Barista', description: 'Takes payments and issues loyalty stamps.' },
-  { value: 'viewer', label: 'Viewer', description: 'Read-only reporting access.' },
-];
+export const assignableRoles: { value: Exclude<MemberRole, 'owner'>; label: string; description: string }[] =
+  [
+    { value: 'admin', label: 'Admin', description: 'Manages the business and team.' },
+    { value: 'manager', label: 'Manager', description: 'Manages profile, menu, content, and rewards.' },
+    { value: 'finance', label: 'Finance', description: 'Views payments, refunds, and reporting.' },
+    { value: 'barista', label: 'Barista', description: 'Takes payments and issues loyalty stamps.' },
+    { value: 'viewer', label: 'Viewer', description: 'Read-only reporting access.' },
+  ];

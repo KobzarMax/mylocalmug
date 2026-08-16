@@ -1,8 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { BusinessApplicationInput, businessApplicationInputSchema, businessProfileInputSchema } from '../../lib/businessValidation';
-import { inferProfileImageMime, validateProfileImageBytes, validateProfileImageMetadata } from '../../lib/profileImage';
+import { useEffect, useState } from 'react';
+
+import {
+  BusinessApplicationInput,
+  businessApplicationInputSchema,
+  businessProfileInputSchema,
+} from '../../lib/businessValidation';
+import { safeErrorMessage } from '../../lib/errors';
+import {
+  inferProfileImageMime,
+  validateProfileImageBytes,
+  validateProfileImageMetadata,
+} from '../../lib/profileImage';
 import { supabase } from '../../lib/supabase';
+
 import {
   getBusinessApplication,
   getBusinessHours,
@@ -14,73 +26,71 @@ import {
   saveBusinessProfile,
   submitBusinessApplication,
 } from './api';
-import { Application, createDefaultHours, DayHours, ReviewApplication, SelectedMedia, Workspace } from './types';
+import {
+  Application,
+  createDefaultHours,
+  DayHours,
+  ReviewApplication,
+  SelectedMedia,
+  Workspace,
+} from './types';
 
 export function useBusinessAccess(userId: string) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [application, setApplication] = useState<Application | null>(null);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [nextWorkspace, adminStatus] = await Promise.all([
+  const queryKey = ['business-access', userId] as const;
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey,
+    enabled: Boolean(userId),
+    meta: { persist: false },
+    queryFn: async () => {
+      const [workspace, isPlatformAdmin] = await Promise.all([
         getBusinessWorkspace(userId),
         getPlatformAdminStatus(userId),
       ]);
-      setWorkspace(nextWorkspace);
-      setIsPlatformAdmin(adminStatus);
-      setApplication(nextWorkspace ? null : await getBusinessApplication(userId));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Business area unavailable.');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-  return { loading, error, application, workspace, isPlatformAdmin, refresh };
+      return {
+        workspace,
+        isPlatformAdmin,
+        application: workspace ? null : await getBusinessApplication(userId),
+      };
+    },
+  });
+  return {
+    loading: query.isLoading,
+    error: query.error ? message(query.error, 'Business area unavailable.') : null,
+    application: query.data?.application ?? null,
+    workspace: query.data?.workspace ?? null,
+    isPlatformAdmin: query.data?.isPlatformAdmin ?? false,
+    refresh: () => client.invalidateQueries({ queryKey }),
+  };
 }
 
 export function useApplicationReviews() {
-  const [applications, setApplications] = useState<ReviewApplication[]>([]);
   const [selected, setSelected] = useState<ReviewApplication | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const rows = await getReviewApplications();
-      setApplications(rows);
-      setSelected((current) => current ? rows.find((row) => row.id === current.id) ?? null : null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not load applications.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
+  const queryKey = ['business-applications', 'review'] as const;
+  const client = useQueryClient();
+  const query = useQuery({ queryKey, queryFn: getReviewApplications, meta: { persist: false } });
+  const decision = useMutation({
+    mutationFn: ({ id, approved, reason }: { id: string; approved: boolean; reason: string | null }) =>
+      reviewBusinessApplication(id, approved, reason),
+    onSuccess: async () => {
+      setSelected(null);
+      await client.invalidateQueries({ queryKey });
+    },
+  });
   const decide = async (approved: boolean, reason: string | null) => {
     if (!selected) return;
-    setBusy(true);
-    try {
-      await reviewBusinessApplication(selected.id, approved, reason);
-      setSelected(null);
-      await refresh();
-    } finally {
-      setBusy(false);
-    }
+    await decision.mutateAsync({ id: selected.id, approved, reason });
   };
-
-  return { applications, selected, setSelected, loading, busy, error, refresh, decide };
+  return {
+    applications: query.data ?? [],
+    selected,
+    setSelected,
+    loading: query.isLoading,
+    busy: decision.isPending,
+    error: query.error ? message(query.error, 'Could not load applications.') : null,
+    refresh: () => client.invalidateQueries({ queryKey }),
+    decide,
+  };
 }
 
 export function useBusinessApplication(userId: string, initial: Application, onSubmitted: () => void) {
@@ -105,7 +115,11 @@ export function useBusinessApplication(userId: string, initial: Application, onS
 
   const saveDraft = async () => {
     setBusy(true);
-    try { await persist(); } finally { setBusy(false); }
+    try {
+      await persist();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submit = async () => {
@@ -120,6 +134,10 @@ export function useBusinessApplication(userId: string, initial: Application, onS
   };
 
   return { form, update, busy, lastSaved, saveDraft, submit };
+}
+
+function message(error: unknown, fallback: string) {
+  return safeErrorMessage(error, fallback);
 }
 
 async function chooseMedia(kind: 'logo' | 'header'): Promise<SelectedMedia | null> {
@@ -145,7 +163,9 @@ async function uploadMedia(businessId: string, kind: 'logo' | 'header', media: S
   const path = `${businessId}/${kind}-${Date.now()}.${extension}`;
   const response = await fetch(media.uri);
   const bytes = await response.arrayBuffer();
-  const { error } = await supabase.storage.from('business-media').upload(path, bytes, { contentType: media.mimeType });
+  const { error } = await supabase.storage
+    .from('business-media')
+    .upload(path, bytes, { contentType: media.mimeType });
   if (error) throw error;
   return { path, url: supabase.storage.from('business-media').getPublicUrl(path).data.publicUrl };
 }
@@ -170,24 +190,40 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
   useEffect(() => {
     if (!workspace.location) return;
     let active = true;
-    getBusinessHours(workspace.location.id).then((rows) => {
-      if (!active) return;
-      if (rows.length) {
-        const byDay = new Map(rows.map((row) => [row.day_of_week, row]));
-        setHours(createDefaultHours().map((fallback) => {
-          const row = byDay.get(fallback.dayOfWeek);
-          return row ? { dayOfWeek: row.day_of_week, opensAt: row.opens_at ?? fallback.opensAt, closesAt: row.closes_at ?? fallback.closesAt, isClosed: row.is_closed } : fallback;
-        }));
-      }
-    }).finally(() => active && setHoursLoading(false));
-    return () => { active = false; };
+    getBusinessHours(workspace.location.id)
+      .then((rows) => {
+        if (!active) return;
+        if (rows.length) {
+          const byDay = new Map(rows.map((row) => [row.day_of_week, row]));
+          setHours(
+            createDefaultHours().map((fallback) => {
+              const row = byDay.get(fallback.dayOfWeek);
+              return row
+                ? {
+                    dayOfWeek: row.day_of_week,
+                    opensAt: row.opens_at ?? fallback.opensAt,
+                    closesAt: row.closes_at ?? fallback.closesAt,
+                    isClosed: row.is_closed,
+                  }
+                : fallback;
+            }),
+          );
+        }
+      })
+      .finally(() => active && setHoursLoading(false));
+    return () => {
+      active = false;
+    };
   }, [workspace.location]);
 
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const updateHours = (index: number, patch: Partial<DayHours>) => setHours((current) => current.map((day, dayIndex) => dayIndex === index ? { ...day, ...patch } : day));
+  const update = (key: keyof typeof form, value: string) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const updateHours = (index: number, patch: Partial<DayHours>) =>
+    setHours((current) => current.map((day, dayIndex) => (dayIndex === index ? { ...day, ...patch } : day)));
   const pickMedia = async (kind: 'logo' | 'header') => {
     const media = await chooseMedia(kind);
-    if (kind === 'logo') setLogo(media); else setHeader(media);
+    if (kind === 'logo') setLogo(media);
+    else setHeader(media);
   };
 
   const save = async () => {
@@ -198,8 +234,16 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
     try {
       let logoUrl = workspace.business.logoUrl;
       let headerUrl = workspace.business.headerUrl;
-      if (logo) { const uploaded = await uploadMedia(workspace.business.id, 'logo', logo); logoUrl = uploaded.url; uploadedPaths.push(uploaded.path); }
-      if (header) { const uploaded = await uploadMedia(workspace.business.id, 'header', header); headerUrl = uploaded.url; uploadedPaths.push(uploaded.path); }
+      if (logo) {
+        const uploaded = await uploadMedia(workspace.business.id, 'logo', logo);
+        logoUrl = uploaded.url;
+        uploadedPaths.push(uploaded.path);
+      }
+      if (header) {
+        const uploaded = await uploadMedia(workspace.business.id, 'header', header);
+        headerUrl = uploaded.url;
+        uploadedPaths.push(uploaded.path);
+      }
       await saveBusinessProfile(workspace, parsed.data, published, hours, { logoUrl, headerUrl });
       onSaved();
     } catch (error) {
@@ -210,5 +254,18 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
     }
   };
 
-  return { form, update, published, setPublished, hours, updateHours, hoursLoading, logo, header, pickMedia, busy, save };
+  return {
+    form,
+    update,
+    published,
+    setPublished,
+    hours,
+    updateHours,
+    hoursLoading,
+    logo,
+    header,
+    pickMedia,
+    busy,
+    save,
+  };
 }

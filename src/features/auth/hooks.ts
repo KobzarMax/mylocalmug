@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
 import * as Linking from 'expo-linking';
+import { useEffect, useRef, useState } from 'react';
+
+import { safeErrorMessage } from '../../lib/errors';
+
 import {
   clearPendingConfirmationEmail,
   createSessionFromAuthUrl,
@@ -13,11 +16,11 @@ import {
 import { AuthMode } from './types';
 import { emailOtpSchema, pendingEmailSchema, registrationSchema, signInSchema } from './validation';
 
-export function useAuthFlow() {
+export function useAuthFlow(initialMode: AuthMode = 'login') {
   const callbackUrl = Linking.useLinkingURL();
   const handledUrl = useRef<string | null>(null);
   const [initializing, setInitializing] = useState(true);
-  const [mode, setModeState] = useState<AuthMode>('login');
+  const [mode, setModeState] = useState<AuthMode>(initialMode);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,7 +54,11 @@ export function useAuthFlow() {
         setPendingEmail(null);
         setNotice('Email confirmed. Your account is ready.');
       })
-      .catch((caught) => setError(messageFrom(caught, 'Could not confirm this email link. Request a new email or use the code.')))
+      .catch((caught) =>
+        setError(
+          messageFrom(caught, 'Could not confirm this email link. Request a new email or use the code.'),
+        ),
+      )
       .finally(() => setBusy(false));
   }, [callbackUrl, initializing]);
 
@@ -89,7 +96,11 @@ export function useAuthFlow() {
       return;
     }
 
-    const parsed = registrationSchema.safeParse({ displayName: displayName.trim(), email: cleanEmail, password });
+    const parsed = registrationSchema.safeParse({
+      displayName: displayName.trim(),
+      email: cleanEmail,
+      password,
+    });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Check the account details.');
       return;
@@ -175,14 +186,32 @@ export function useAuthFlow() {
   };
 
   return {
-    initializing, mode, setMode, displayName, setDisplayName, email, setEmail, password,
-    setPassword, otp, setOtp, pendingEmail, busy, cooldown, error, notice, submit, resend,
-    verifyOtp, showConfirmation, backToLogin,
+    initializing,
+    mode,
+    setMode,
+    displayName,
+    setDisplayName,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    otp,
+    setOtp,
+    pendingEmail,
+    busy,
+    cooldown,
+    error,
+    notice,
+    submit,
+    resend,
+    verifyOtp,
+    showConfirmation,
+    backToLogin,
   };
 }
 
 function messageFrom(caught: unknown, fallback: string) {
-  return caught instanceof Error && caught.message ? caught.message : fallback;
+  return safeErrorMessage(caught, fallback);
 }
 
 function errorCodeFrom(caught: unknown) {

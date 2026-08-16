@@ -1,18 +1,122 @@
-import React from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { LoyaltyOffer, LoyaltyProgram, LoyaltyProgramStatus, LoyaltyStats } from '../types';
+
+import { safeErrorMessage } from '../../../lib/errors';
 import { rewardStyles as s } from '../styles';
+import { LoyaltyOffer, LoyaltyProgram, LoyaltyProgramStatus, LoyaltyStats } from '../types';
+
+import { BusinessOfferCard } from './BusinessOfferCard';
+import { BusinessProgrammeCard } from './BusinessProgrammeCard';
 import { EmptyRewards, RewardHeader } from './RewardUI';
 
-type Props={programs:LoyaltyProgram[];offers:LoyaltyOffer[];stats:LoyaltyStats;canManage:boolean;canIssue:boolean;busy:boolean;onBack:()=>void;onCreateProgram:()=>void;onCreateOffer:()=>void;onEdit:(program:LoyaltyProgram)=>void;onEditOffer:(offer:LoyaltyOffer)=>void;onStatus:(id:string,status:LoyaltyProgramStatus)=>Promise<unknown>;onScan:()=>void;onLinkEvent:()=>void};
-export function BusinessRewardsOverview(props:Props){
- const change=(program:LoyaltyProgram,status:LoyaltyProgramStatus)=>Alert.alert(`${status[0].toUpperCase()+status.slice(1)} programme?`,status==='archived'?'Outstanding balances prevent archival.':'The programme terms and audit history remain available.',[{text:'Cancel',style:'cancel'},{text:'Confirm',onPress:()=>void props.onStatus(program.id,status).catch(error=>Alert.alert('Could not update',error instanceof Error?error.message:'Please try again.'))}]);
- return <ScrollView contentContainerStyle={s.scroll}>
-  <RewardHeader title="Rewards" onBack={props.onBack}/><Text style={s.intro}>Run independent stamp cards, points programmes, tier perks, and staff-validated meal deals.</Text>
-  <View style={s.wrap}>{props.canManage&&<Pressable onPress={props.onCreateProgram} style={s.primary}><Text style={s.primaryText}>New programme</Text></Pressable>}{props.canManage&&<Pressable onPress={props.onCreateOffer} style={s.secondary}><Text style={s.secondaryText}>New reward or deal</Text></Pressable>}{props.canIssue&&<Pressable onPress={props.onScan} style={s.secondary}><Text style={s.secondaryText}>Scan customer QR</Text></Pressable>}{props.canManage&&<Pressable onPress={props.onLinkEvent} style={s.secondary}><Text style={s.secondaryText}>Link event item</Text></Pressable>}</View>
-  {props.canManage&&<View style={s.card}><Text style={s.cardTitle}>Live activity</Text><Text style={s.meta}>{props.stats.memberships} memberships · {props.stats.issuances} issuances</Text><Text style={s.meta}>{props.stats.redemptions} redemptions · {props.stats.reversals} reversals</Text></View>}
-  <Text style={s.sectionTitle}>Programmes</Text>{!props.programs.length?<EmptyRewards title="No loyalty programmes" message="Create a stamp card or points programme, review its customer terms, then publish it."/>:props.programs.map(program=><ProgrammeCard key={program.id} program={program} busy={props.busy} canManage={props.canManage} onEdit={()=>props.onEdit(program)} onChange={status=>change(program,status)}/>)}
-  <Text style={s.sectionTitle}>Rewards and promotions</Text>{!props.offers.length?<EmptyRewards title="No offers yet" message="Add a balance reward, reusable tier perk, or meal deal."/>:props.offers.map(offer=><Pressable key={offer.id} disabled={!props.canManage} onPress={()=>props.onEditOffer(offer)} style={s.card}><Text style={s.cardTitle}>{offer.title}</Text><Text style={s.meta}>{offer.kind.replace('_',' ')} · {offer.benefitType.replaceAll('_',' ')} · {offer.audience}</Text><Text style={s.meta}>{offer.description}</Text>{props.canManage&&<Text style={s.meta}>Tap to edit</Text>}</Pressable>)}
- </ScrollView>;
+type Props = {
+  programs: LoyaltyProgram[];
+  offers: LoyaltyOffer[];
+  stats: LoyaltyStats;
+  canManage: boolean;
+  canIssue: boolean;
+  busy: boolean;
+  onBack: () => void;
+  onCreateProgram: () => void;
+  onCreateOffer: () => void;
+  onEdit: (program: LoyaltyProgram) => void;
+  onEditOffer: (offer: LoyaltyOffer) => void;
+  onStatus: (id: string, status: LoyaltyProgramStatus) => Promise<unknown>;
+  onScan: () => void;
+  onLinkEvent: () => void;
+};
+export function BusinessRewardsOverview(props: Props) {
+  const change = (program: LoyaltyProgram, status: LoyaltyProgramStatus) =>
+    Alert.alert(
+      `${status[0].toUpperCase() + status.slice(1)} programme?`,
+      status === 'archived'
+        ? 'Outstanding balances prevent archival.'
+        : 'The programme terms and audit history remain available.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: () =>
+            void props
+              .onStatus(program.id, status)
+              .catch((error) =>
+                Alert.alert('Could not update', safeErrorMessage(error, 'Please try again.')),
+              ),
+        },
+      ],
+    );
+  return (
+    <ScrollView contentContainerStyle={s.scroll}>
+      <RewardHeader title="Rewards" onBack={props.onBack} />
+      <Text style={s.intro}>
+        Run independent stamp cards, points programmes, tier perks, and staff-validated meal deals.
+      </Text>
+      <View style={s.wrap}>
+        {props.canManage && (
+          <Pressable accessibilityRole="button" onPress={props.onCreateProgram} style={s.primary}>
+            <Text style={s.primaryText}>New programme</Text>
+          </Pressable>
+        )}
+        {props.canManage && (
+          <Pressable accessibilityRole="button" onPress={props.onCreateOffer} style={s.secondary}>
+            <Text style={s.secondaryText}>New reward or deal</Text>
+          </Pressable>
+        )}
+        {props.canIssue && (
+          <Pressable accessibilityRole="button" onPress={props.onScan} style={s.secondary}>
+            <Text style={s.secondaryText}>Scan customer QR</Text>
+          </Pressable>
+        )}
+        {props.canManage && (
+          <Pressable accessibilityRole="button" onPress={props.onLinkEvent} style={s.secondary}>
+            <Text style={s.secondaryText}>Link event item</Text>
+          </Pressable>
+        )}
+      </View>
+      {props.canManage && (
+        <View style={s.card}>
+          <Text style={s.cardTitle}>Live activity</Text>
+          <Text style={s.meta}>
+            {props.stats.memberships} memberships · {props.stats.issuances} issuances
+          </Text>
+          <Text style={s.meta}>
+            {props.stats.redemptions} redemptions · {props.stats.reversals} reversals
+          </Text>
+        </View>
+      )}
+      <Text style={s.sectionTitle}>Programmes</Text>
+      {!props.programs.length ? (
+        <EmptyRewards
+          title="No loyalty programmes"
+          message="Create a stamp card or points programme, review its customer terms, then publish it."
+        />
+      ) : (
+        props.programs.map((program) => (
+          <BusinessProgrammeCard
+            key={program.id}
+            program={program}
+            busy={props.busy}
+            canManage={props.canManage}
+            onEdit={() => props.onEdit(program)}
+            onChange={(status) => change(program, status)}
+          />
+        ))
+      )}
+      <Text style={s.sectionTitle}>Rewards and promotions</Text>
+      {!props.offers.length ? (
+        <EmptyRewards
+          title="No offers yet"
+          message="Add a balance reward, reusable tier perk, or meal deal."
+        />
+      ) : (
+        props.offers.map((offer) => (
+          <BusinessOfferCard
+            key={offer.id}
+            offer={offer}
+            canManage={props.canManage}
+            onEdit={() => props.onEditOffer(offer)}
+          />
+        ))
+      )}
+    </ScrollView>
+  );
 }
-function ProgrammeCard({program,busy,canManage,onEdit,onChange}:{program:LoyaltyProgram;busy:boolean;canManage:boolean;onEdit:()=>void;onChange:(status:LoyaltyProgramStatus)=>void}){return <View style={s.card}><View style={s.row}><View style={{flex:1}}><Text style={s.cardTitle}>{program.name}</Text><Text style={s.meta}>{program.type} · version {program.currentVersion} · {program.status}</Text></View><View style={s.pill}><Text style={s.pillText}>{program.status}</Text></View></View><Text style={s.meta}>{program.description||'No description yet.'}</Text>{canManage&&<View style={s.wrap}><Pressable disabled={busy} onPress={onEdit} style={s.secondary}><Text style={s.secondaryText}>New version</Text></Pressable>{program.status==='draft'&&<><Pressable onPress={()=>onChange('active')} style={s.secondary}><Text style={s.secondaryText}>Publish</Text></Pressable>{program.startsAt&&new Date(program.startsAt)>new Date()&&<Pressable onPress={()=>onChange('scheduled')} style={s.secondary}><Text style={s.secondaryText}>Schedule</Text></Pressable>}</>}{program.status==='scheduled'&&<Pressable onPress={()=>onChange('draft')} style={s.secondary}><Text style={s.secondaryText}>Return to draft</Text></Pressable>}{program.status==='active'&&<><Pressable onPress={()=>onChange('paused')} style={s.secondary}><Text style={s.secondaryText}>Pause</Text></Pressable><Pressable onPress={()=>onChange('ended')} style={[s.secondary,s.warning]}><Text style={[s.secondaryText,s.warningText]}>End</Text></Pressable></>}{program.status==='paused'&&<Pressable onPress={()=>onChange('active')} style={s.secondary}><Text style={s.secondaryText}>Resume</Text></Pressable>}{program.status==='ended'&&<Pressable onPress={()=>onChange('archived')} style={[s.secondary,s.warning]}><Text style={[s.secondaryText,s.warningText]}>Archive</Text></Pressable>}</View>}</View>}

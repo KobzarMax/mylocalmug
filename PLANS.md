@@ -4,7 +4,7 @@ Last updated: 16 August 2026
 
 ## Product goal
 
-Local Mug connects independent coffee shops with local customers. Customers discover shops, follow businesses, read news, rate menu items, and use loyalty rewards. Approved businesses manage their public profile, staff, menu, content, rewards, payments, and in-person terminals.
+Local Mug connects independent coffee shops with local customers. Customers discover shops, follow businesses, read news, rate menu items, and use loyalty rewards. Approved businesses manage their public profile, staff, menu, content, rewards, and legal information. Payments and in-person terminals remain a researched future slice.
 
 ## Current state
 
@@ -12,13 +12,33 @@ Local Mug connects independent coffee shops with local customers. Customers disc
 
 - Expo SDK 57, React Native, and TypeScript application.
 - Supabase email/password authentication with persistent sessions.
-- Supabase client configured for React Native.
+- Typed Supabase client backed by generated `Database` and RPC definitions.
 - Drizzle schema and numbered migrations.
 - Supabase RLS, database functions, triggers, and Storage policies.
 - Feature-scoped Supabase APIs, trusted database functions, and deployed Edge Functions; no separate application API host.
 - TanStack Query with explicit AsyncStorage persistence, NetInfo reconnect handling, and Expo Image disk caching for customer reading data.
 - Git repository initialized with a baseline commit and SSH remote.
-- TypeScript, Drizzle consistency, Expo configuration, and iOS production bundling pass.
+- Expo Router with protected authentication, customer, and business stacks and typed dynamic parameters.
+- Shared accessible UI primitives, feature error boundaries, safe error conversion, ESLint, Prettier, Jest Expo, and React Native Testing Library.
+- TypeScript, ESLint, formatting, Drizzle consistency, Expo dependency/configuration, and UI/route tests pass.
+
+### Whole-app quality remediation
+
+Implementation status: **CODE DONE; DEVICE AND RESPONSIVE ACCEPTANCE PENDING**.
+
+- Updated Expo SDK 57 dependencies to compatible patch versions and introduced Expo Router route groups with normal back-stack behavior.
+- Removed postponed payment, checkout, order, refund, and Terminal features from the default import and navigation graph; public menus no longer expose ordering controls.
+- Moved UK legal information to a first-class, permission-controlled business action.
+- Replaced the root boolean-navigation prototype and deleted obsolete prototype screens, fake dashboard metrics, fake profile history, and inactive destinations.
+- Rebuilt profile editing as a modular feature with typed API operations, image handling, validation, TanStack queries/mutations, rollback, and media cleanup boundaries.
+- Added shared tokens and accessible buttons, fields, cards, headers, state views, segmented controls, status chips, offline notices, date/time fields, and confirmation patterns.
+- Refactored reward programme and offer creation into step-based sections with native/readable date controls, validation summaries, previews, and explicit save/publish actions.
+- Migrated business, menu, team, legal, content-management, rewards, and profile reads to non-persisted TanStack Query keys while retaining only approved customer-reading data in the 24-hour cache.
+- Scoped order realtime subscriptions to the active business or customer and standardized safe user-facing error conversion.
+- Generated typed Supabase database definitions and removed broad application-level RPC casting in the remediated paths.
+- Added protected-route and shared-component tests plus strict unused-code checks. Web export succeeds without Stripe or Terminal code in the bundle.
+
+No database or RLS migration is required for this remediation.
 
 ### Authentication and account model
 
@@ -132,7 +152,7 @@ The existing Stripe-first implementation is retained as an experimental foundati
 - Customer online-only ASAP pickup basket with PaymentSheet card/Apple Pay/Google Pay and optional hosted PayPal checkout.
 - Ten-minute shop confirmation, staff accept/reject/preparing/ready/completed flow, and idempotent rejection/timeout refunds.
 - Stripe Terminal simulator and WisePad 3 Bluetooth workflow with interruption-safe payment recovery boundaries.
-- Expo Go startup is protected from the native-only Stripe Terminal package; the Till tab reports that a Local Mug development build is required, and eligible native builds load Terminal only on demand.
+- Native provider modules have explicit platform boundaries but are not reachable from live application routes.
 - Drizzle `0006`, Supabase `009`, payment validation tests, transactional RLS tests, and five payment Edge Functions.
 
 Do not deploy or configure the payment provider functions as a production payment system until the provider research and architecture below are complete. Stripe may remain an optional terminal or online-checkout provider, but it must not be a required terminal provider.
@@ -196,7 +216,7 @@ Deployment status reported on 13 August 2026: Drizzle `0004` and Supabase `005` 
 
 ### Code structure
 
-The auth, business, team, and menu features use the modular reference structure:
+The application now uses Expo Router for navigation and feature modules for UI, state, validation, and external operations:
 
 ```text
 src/features/auth/
@@ -259,11 +279,27 @@ src/features/legal/
   types.ts
   validation.ts
   components/
+
+src/features/profile/
+  EditProfileScreen.tsx
+  ProfileScreen.tsx
+  api.ts
+  hooks.ts
+  styles.ts
+  types.ts
+  validation.ts
+  components/
+
+src/app/
+  _layout.tsx
+  (auth)/
+  (customer)/
+  (business)/
 ```
 
 - UI does not access Supabase directly.
 - API operations, hooks, permissions, types, styles, and screens are separate.
-- `BusinessPortal` is a small flow coordinator.
+- Route guards improve navigation and denied states while RLS remains the authorization boundary.
 
 ### Database deployment
 
@@ -317,7 +353,7 @@ on conflict do nothing;
 - Live end-to-end testing with separate applicant, administrator, owner, employee, customer, and anonymous accounts is not yet recorded.
 - Production email confirmation requires custom SMTP plus the documented code-only Supabase template; inbox/device acceptance is covered by the deployment checklist.
 - The current business portal loads the first active business membership; there is no multi-workspace selector.
-- Full Expo Router protected route groups are not implemented. The current flow uses component state plus permission-filtered actions.
+- Multi-business workspace selection is not implemented; the current router preserves the first-active-workspace behavior.
 - Automatic invitation-email delivery and ownership transfer are missing; code-based invitations are complete.
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
@@ -326,7 +362,7 @@ on conflict do nothing;
 - News/events backend deployment is complete; RLS rerun, Cron execution evidence, Android FCM, paused iOS APNs registration, and physical-device push/calendar acceptance remain pending.
 - Payments contain a Stripe-first experimental implementation, but the production architecture is postponed until provider research supports business-selected terminals such as Dojo.
 - Offline customer data is read-only by design; queued writes and conflict resolution are not implemented.
-- The invitation RLS test exists as a transactional SQL script, but there is no automated test runner for database functions, hooks, or UI workflows.
+- Transactional database verification remains a Supabase SQL Editor workflow; local validation and component/route tests now run through the project test scripts.
 
 ## Next implementation steps
 
@@ -380,13 +416,12 @@ Priority: immediately after menu verification.
 
 Definition of done: the complete application-to-published-profile workflow succeeds on a physical iOS device and all negative RLS checks fail safely.
 
-### 5. Routing and workspace selection
+### 5. Quality-remediation acceptance and workspace selection
 
-- Introduce Expo Router using SDK 57 patterns.
-- Add protected authentication, customer, application, admin-review, workspace, and business route groups.
-- Add a selector for users with multiple active business memberships.
-- Preserve RLS as the authorization boundary.
-- Add route-level loading, denied, missing-workspace, and suspended states.
+- Run the remediated customer and business journeys on iOS and Android development builds.
+- Verify large text, VoiceOver/TalkBack, camera denial, offline recovery, interrupted forms, and content deep links.
+- Check small phone, large phone, tablet, and narrow web layouts and capture the planned before/after product screenshots.
+- Add a selector for users with multiple active business memberships while preserving the current protected routes and RLS boundary.
 
 ### 6. Finish business profile quality
 

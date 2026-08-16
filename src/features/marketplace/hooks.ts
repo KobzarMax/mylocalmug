@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useIsRestoring, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+
 import { useNetworkStatus } from '../../lib/query/QueryProvider';
+
 import { getPublicBusinessDetail, getPublicBusinesses, getPublicBusinessMenu } from './api';
 import { MarketplaceCursor } from './types';
 
@@ -42,10 +44,22 @@ export function usePublicBusiness(businessId: string) {
     queryFn: () => getPublicBusinessMenu(businessId),
     meta: persistedMeta,
   });
-  return { detail: useOfflineQueryState(detail, detail.data ?? null), menu: useOfflineQueryState(menu, menu.data ?? null) };
+  return {
+    detail: useOfflineQueryState(detail, detail.data ?? null),
+    menu: useOfflineQueryState(menu, menu.data ?? null),
+  };
 }
 
-function useOfflineQueryState<QueryResult extends { dataUpdatedAt: number; error: Error | null; isFetching: boolean; isLoading: boolean; refetch: () => unknown } , Data>(query: QueryResult, data: Data) {
+function useOfflineQueryState<
+  QueryResult extends {
+    dataUpdatedAt: number;
+    error: Error | null;
+    isFetching: boolean;
+    isLoading: boolean;
+    refetch: () => unknown;
+  },
+  Data,
+>(query: QueryResult, data: Data) {
   const { isOnline } = useNetworkStatus();
   const isRestoring = useIsRestoring();
   return {

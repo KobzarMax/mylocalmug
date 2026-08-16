@@ -2,7 +2,8 @@ export type LoyaltyProgramType = 'stamp' | 'points';
 export type LoyaltyProgramStatus = 'draft' | 'scheduled' | 'active' | 'paused' | 'ended' | 'archived';
 export type LoyaltyEarningMethod = 'item' | 'spend';
 export type LoyaltyOfferKind = 'balance_reward' | 'tier_perk' | 'promotion';
-export type LoyaltyBenefitType = 'free_item' | 'custom_perk' | 'fixed_discount' | 'percentage_discount' | 'bundle_price';
+export type LoyaltyBenefitType =
+  'free_item' | 'custom_perk' | 'fixed_discount' | 'percentage_discount' | 'bundle_price';
 export type LoyaltyOfferAudience = 'everyone' | 'members' | 'tier';
 export type LoyaltyUsagePeriod = 'day' | 'week' | 'month';
 
@@ -56,7 +57,12 @@ export type LoyaltyAccount = {
 };
 
 export type LoyaltyOfferItemInput = { menuItemId: string; role: 'eligible' | 'rewarded'; quantity: number };
-export type LoyaltyMealDealGroupInput = { name: string; quantity: number; sortOrder: number; menuItemIds: string[] };
+export type LoyaltyMealDealGroupInput = {
+  name: string;
+  quantity: number;
+  sortOrder: number;
+  menuItemIds: string[];
+};
 export type LoyaltyOffer = {
   id: string;
   businessId: string;
@@ -85,12 +91,47 @@ export type LoyaltyOfferInput = Omit<LoyaltyOffer, 'id' | 'businessId' | 'items'
   mealDealGroups: LoyaltyMealDealGroupInput[];
 };
 
-export type LoyaltyLedgerEntry = { id: string; accountId: string; kind: 'earn' | 'redeem' | 'reversal' | 'migration'; amount: number; note: string | null; createdAt: string };
+export type LoyaltyLedgerEntry = {
+  id: string;
+  accountId: string;
+  kind: 'earn' | 'redeem' | 'reversal' | 'migration';
+  amount: number;
+  note: string | null;
+  createdAt: string;
+};
 export type LoyaltyQrChallenge = { challengeId: string; challengeToken: string; expiresAt: string };
-export type ClaimedChallenge = { challengeId: string; businessId: string; customerId: string; customerName: string; purpose: 'earn' | 'redeem'; offerId: string | null; expiresAt: string };
-export type VerifiedPurchaseInput = { items: Array<{ menuItemId: string; quantity: number; wasFree: boolean }>; finalEligiblePence: number };
-export type EarningReceipt = { purchaseId: string; entries: Array<{ programId: string; programName: string; amount: number; balance?: number; lifetimeEarned?: number }> };
+export type ClaimedChallenge = {
+  challengeId: string;
+  businessId: string;
+  customerId: string;
+  customerName: string;
+  purpose: 'earn' | 'redeem';
+  offerId: string | null;
+  expiresAt: string;
+};
+export type VerifiedPurchaseInput = {
+  items: { menuItemId: string; quantity: number; wasFree: boolean }[];
+  finalEligiblePence: number;
+};
+export type EarningReceipt = {
+  purchaseId: string;
+  entries: {
+    programId: string;
+    programName: string;
+    amount: number;
+    balance?: number;
+    lifetimeEarned?: number;
+  }[];
+};
 export type MenuChoice = { id: string; name: string; categoryId: string | null; categoryName: string };
 export type EventChoice = { id: string; title: string; startsAt: string; endsAt: string | null };
-export type EventMenuLink = { eventId: string; menuItemId: string; badge: string; message: string; availableFrom: string; availableUntil: string; eventOnly: boolean };
+export type EventMenuLink = {
+  eventId: string;
+  menuItemId: string;
+  badge: string;
+  message: string;
+  availableFrom: string;
+  availableUntil: string;
+  eventOnly: boolean;
+};
 export type LoyaltyStats = { memberships: number; issuances: number; redemptions: number; reversals: number };

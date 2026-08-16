@@ -1,44 +1,55 @@
 import { supabase } from '../../lib/supabase';
+import { Database } from '../../types/database';
+
 import { BusinessLegalProfile, BusinessLegalProfileInput } from './types';
 
 export async function getLegalProfile(businessId: string) {
   const result = await supabase.rpc('get_business_legal_profile', { target_business_id: businessId });
   if (result.error) throw result.error;
-  return mapProfile(result.data as Record<string, unknown>);
+  return mapProfile(result.data);
 }
 
-export async function saveLegalProfile(businessId: string, revision: number, input: BusinessLegalProfileInput) {
-  return callProfileRpc('save_business_legal_profile', {
+export async function saveLegalProfile(
+  businessId: string,
+  revision: number,
+  input: BusinessLegalProfileInput,
+) {
+  const result = await supabase.rpc('save_business_legal_profile', {
     target_business_id: businessId,
     expected_revision: revision,
     profile_input: toPayload(input),
   });
+  if (result.error) throw result.error;
+  return mapProfile(result.data);
 }
 
 export async function submitLegalProfile(businessId: string, revision: number) {
-  return callProfileRpc('submit_business_legal_profile', { target_business_id: businessId, expected_revision: revision });
+  const result = await supabase.rpc('submit_business_legal_profile', {
+    target_business_id: businessId,
+    expected_revision: revision,
+  });
+  if (result.error) throw result.error;
+  return mapProfile(result.data);
 }
 
 export async function approveLegalProfile(businessId: string, revision: number) {
-  return callProfileRpc('approve_business_legal_profile', {
+  const result = await supabase.rpc('approve_business_legal_profile', {
     target_business_id: businessId,
     expected_revision: revision,
     authority_attested: true,
   });
+  if (result.error) throw result.error;
+  return mapProfile(result.data);
 }
 
 export async function requestLegalProfileChanges(businessId: string, revision: number, note: string) {
-  return callProfileRpc('request_business_legal_profile_changes', {
+  const result = await supabase.rpc('request_business_legal_profile_changes', {
     target_business_id: businessId,
     expected_revision: revision,
     review_note: note.trim(),
   });
-}
-
-async function callProfileRpc(name: string, parameters: Record<string, unknown>) {
-  const result = await supabase.rpc(name, parameters);
   if (result.error) throw result.error;
-  return mapProfile(result.data as Record<string, unknown>);
+  return mapProfile(result.data);
 }
 
 function toPayload(input: BusinessLegalProfileInput) {
@@ -60,32 +71,34 @@ function toPayload(input: BusinessLegalProfileInput) {
   };
 }
 
-function mapProfile(row: Record<string, unknown>): BusinessLegalProfile {
+type LegalProfileRow = Database['public']['Functions']['get_business_legal_profile']['Returns'];
+
+function mapProfile(row: LegalProfileRow): BusinessLegalProfile {
   return {
-    businessId: String(row.business_id),
+    businessId: row.business_id,
     country: 'GB',
     entityType: row.entity_type as BusinessLegalProfile['entityType'],
-    legalName: String(row.legal_name ?? ''),
-    tradingName: String(row.trading_name ?? ''),
-    registeredAddressLine1: String(row.registered_address_line1 ?? ''),
-    registeredAddressLine2: String(row.registered_address_line2 ?? ''),
-    registeredTownCity: String(row.registered_town_city ?? ''),
-    registeredCounty: String(row.registered_county ?? ''),
-    registeredPostcode: String(row.registered_postcode ?? ''),
-    contactEmail: String(row.contact_email ?? ''),
-    contactPhone: String(row.contact_phone ?? ''),
-    companyNumber: String(row.company_number ?? ''),
-    charityNumber: String(row.charity_number ?? ''),
-    vatRegistered: Boolean(row.vat_registered),
-    vatNumber: String(row.vat_number ?? ''),
+    legalName: row.legal_name,
+    tradingName: row.trading_name,
+    registeredAddressLine1: row.registered_address_line1,
+    registeredAddressLine2: row.registered_address_line2,
+    registeredTownCity: row.registered_town_city,
+    registeredCounty: row.registered_county,
+    registeredPostcode: row.registered_postcode,
+    contactEmail: row.contact_email,
+    contactPhone: row.contact_phone,
+    companyNumber: row.company_number,
+    charityNumber: row.charity_number,
+    vatRegistered: row.vat_registered,
+    vatNumber: row.vat_number,
     status: row.status as BusinessLegalProfile['status'],
-    revision: Number(row.revision),
-    changeRequestNote: String(row.change_request_note ?? ''),
-    lastEditedBy: row.last_edited_by ? String(row.last_edited_by) : null,
-    submittedBy: row.submitted_by ? String(row.submitted_by) : null,
-    submittedAt: row.submitted_at ? String(row.submitted_at) : null,
-    approvedBy: row.approved_by ? String(row.approved_by) : null,
-    approvedAt: row.approved_at ? String(row.approved_at) : null,
-    updatedAt: String(row.updated_at),
+    revision: row.revision,
+    changeRequestNote: row.change_request_note,
+    lastEditedBy: row.last_edited_by,
+    submittedBy: row.submitted_by,
+    submittedAt: row.submitted_at,
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
+    updatedAt: row.updated_at,
   };
 }

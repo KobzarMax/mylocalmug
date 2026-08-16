@@ -1,8 +1,17 @@
 import React from 'react';
 import { Text, TextInput, View } from 'react-native';
+
 import { styles } from '../styles';
 
-export function LegalFormField({ label, value, onChangeText, disabled, keyboardType, autoCapitalize = 'sentences', placeholder }: {
+export function LegalFormField({
+  label,
+  value,
+  onChangeText,
+  disabled,
+  keyboardType,
+  autoCapitalize = 'sentences',
+  placeholder,
+}: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -11,14 +20,20 @@ export function LegalFormField({ label, value, onChangeText, disabled, keyboardT
   autoCapitalize?: React.ComponentProps<typeof TextInput>['autoCapitalize'];
   placeholder?: string;
 }) {
-  return <View><Text style={styles.label}>{label}</Text><TextInput
-    value={value}
-    onChangeText={onChangeText}
-    editable={!disabled}
-    keyboardType={keyboardType}
-    autoCapitalize={autoCapitalize}
-    autoCorrect={false}
-    placeholder={placeholder}
-    style={[styles.input, disabled && styles.disabled]}
-  /></View>;
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        accessibilityLabel={label}
+        value={value}
+        onChangeText={onChangeText}
+        editable={!disabled}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={false}
+        placeholder={placeholder}
+        style={[styles.input, disabled && styles.disabled]}
+      />
+    </View>
+  );
 }

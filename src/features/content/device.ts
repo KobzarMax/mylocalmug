@@ -1,8 +1,9 @@
-import { Platform } from 'react-native';
 import * as Calendar from 'expo-calendar';
-import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+
 import { ContentDetail } from './types';
 
 const channelId = 'events';
@@ -18,7 +19,8 @@ Notifications.setNotificationHandler({
 
 export async function registerForEventNotifications(requestPermission: boolean) {
   if (!Device.isDevice) throw new Error('Push notifications require a physical device.');
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') throw new Error('Push notifications are unavailable on this platform.');
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android')
+    throw new Error('Push notifications are unavailable on this platform.');
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(channelId, {
       name: 'Coffee shop events',
@@ -55,8 +57,9 @@ export async function addEventToCalendar(event: ContentDetail) {
     calendar = Calendar.getDefaultCalendarSync();
   } else {
     const calendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
-    calendar = calendars.find((candidate) => candidate.allowsModifications && candidate.isPrimary)
-      ?? calendars.find((candidate) => candidate.allowsModifications);
+    calendar =
+      calendars.find((candidate) => candidate.allowsModifications && candidate.isPrimary) ??
+      calendars.find((candidate) => candidate.allowsModifications);
   }
   if (!calendar) throw new Error('No writable calendar is available on this device.');
 

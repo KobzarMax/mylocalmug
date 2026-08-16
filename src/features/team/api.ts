@@ -1,8 +1,11 @@
 import { supabase } from '../../lib/supabase';
 import { MemberRole } from '../business/types';
+
 import { CreatedInvitation, MembershipStatus, TeamInvitation, TeamMember } from './types';
 
-export async function getTeam(businessId: string): Promise<{ members: TeamMember[]; invitations: TeamInvitation[] }> {
+export async function getTeam(
+  businessId: string,
+): Promise<{ members: TeamMember[]; invitations: TeamInvitation[] }> {
   const [membershipsResult, invitationsResult] = await Promise.all([
     supabase
       .from('business_memberships')
@@ -56,7 +59,11 @@ export async function getPendingInvitations(email: string): Promise<TeamInvitati
   return (result.data ?? []).map(mapInvitation);
 }
 
-export async function createInvitation(businessId: string, email: string, role: Exclude<MemberRole, 'owner'>): Promise<CreatedInvitation> {
+export async function createInvitation(
+  businessId: string,
+  email: string,
+  role: Exclude<MemberRole, 'owner'>,
+): Promise<CreatedInvitation> {
   const result = await supabase.rpc('create_business_invitation', {
     target_business_id: businessId,
     invite_email: email,

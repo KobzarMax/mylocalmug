@@ -1,5 +1,5 @@
-import React from 'react';
 import { Text, View } from 'react-native';
+
 import { styles } from '../../payments/styles';
 
 type TillUnavailableProps = {
@@ -7,9 +7,10 @@ type TillUnavailableProps = {
 };
 
 export function TillUnavailable({ reason }: TillUnavailableProps) {
-  const message = reason === 'expo-go'
-    ? 'The card reader needs a Local Mug iOS development build and cannot run inside Expo Go.'
-    : 'This iOS build does not contain the Stripe Terminal native module. Rebuild the development client after installing native dependencies.';
+  const message =
+    reason === 'expo-go'
+      ? 'The card reader needs a Local Mug iOS development build and cannot run inside Expo Go.'
+      : 'This iOS build does not contain the Stripe Terminal native module. Rebuild the development client after installing native dependencies.';
 
   return (
     <View accessibilityRole="summary" style={styles.card}>

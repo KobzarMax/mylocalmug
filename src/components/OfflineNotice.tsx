@@ -1,11 +1,26 @@
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
 import { palette } from '../lib/design';
 
-export function OfflineNotice({ isOnline, updatedAt, stale = false }: { isOnline: boolean; updatedAt?: number; stale?: boolean }) {
+export function OfflineNotice({
+  isOnline,
+  updatedAt,
+  stale = false,
+}: {
+  isOnline: boolean;
+  updatedAt?: number;
+  stale?: boolean;
+}) {
   if (isOnline && !stale) return null;
   const updated = updatedAt ? ` · updated ${formatRelative(updatedAt)}` : '';
-  return <View style={styles.notice}><Text style={styles.text}>{isOnline ? 'Showing saved data' : 'Offline'}{updated}</Text></View>;
+  return (
+    <View style={styles.notice}>
+      <Text style={styles.text}>
+        {isOnline ? 'Showing saved data' : 'Offline'}
+        {updated}
+      </Text>
+    </View>
+  );
 }
 
 function formatRelative(value: number) {
@@ -17,6 +32,14 @@ function formatRelative(value: number) {
 }
 
 const styles = StyleSheet.create({
-  notice: { minHeight: 34, paddingHorizontal: 12, borderRadius: 11, backgroundColor: '#FFF3EA', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  notice: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+    borderRadius: 11,
+    backgroundColor: palette.warningPaper,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
   text: { color: palette.orange, fontSize: 11, fontWeight: '800' },
 });

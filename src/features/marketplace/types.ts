@@ -33,6 +33,14 @@ export type PublicMenuItem = {
   description: string;
   price: number;
   photoUrl: string | null;
+  event: {
+    id: string;
+    title: string;
+    badge: string;
+    message: string;
+    availableFrom: string;
+    availableUntil: string;
+  } | null;
 };
 
 export type PublicMenuCategory = {

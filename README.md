@@ -33,7 +33,7 @@ cp .env.example .env
 pnpm start
 ```
 
-Then scan the QR code with Expo Go, or press `i`, `a`, or `w` for another target. The current UI works without filling in `.env`.
+Then scan the QR code with Expo Go, or press `i`, `a`, or `w` for another target. The current UI works without filling in `.env`. Expo Go supports the ordinary app flow, but the business **Till** tab displays an unavailable state because Stripe Terminal requires a custom native development build.
 
 To connect Supabase:
 
@@ -179,9 +179,24 @@ Local Mug stores ordinary UK business identity details only. It does not store U
 6. Schedule `process-payment-jobs` every minute using Supabase Cron/Vault and send `x-cron-secret` with the configured secret.
 7. Create a new development build. Stripe Terminal, Apple Pay, and Google Pay cannot be accepted in Expo Go.
 
+The Stripe Terminal package is loaded only after an eligible native build opens the **Till** tab. It is not initialized in Expo Go, so the rest of the app can start and remain usable there.
+
 Provider secrets never enter Expo or application tables. Stripe uses connected-account direct charges with no Local Mug application fee. PayPal is shown only for ready sellers. Customer payments are captured immediately, shops receive ten minutes to confirm, and rejection/expiry creates an idempotent full-refund job.
 
 Pending external gates are PayPal multiparty approval/live credentials, Apple Developer Merchant ID and Apple Pay certificate, Google Pay production acceptance, Stripe Connect live review, and physical WisePad 3 acceptance.
+
+### Rewards and loyalty deployment
+
+1. Apply Drizzle migration `0007_configurable_loyalty.sql`.
+2. Apply Supabase migration `010_configurable_loyalty.sql` after Drizzle `0007` and Supabase `009`.
+3. Run `supabase/tests/010_configurable_loyalty_rls.sql` in the SQL editor. It is transactional and rolls back all fixtures.
+4. Create a new development build after installing the updated dependencies; staff QR scanning uses the SDK 57 `expo-camera` plugin and camera permission.
+5. As an owner, create and publish a stamp programme, points-per-pound programme, points-per-item programme, tier perk, balance reward, and meal deal.
+6. With a customer account, explicitly join programmes and generate an earning code. Scan it as a barista, enter the verified external-till basket, and confirm progress.
+7. Generate and consume a reward code, then confirm the same screenshot/code cannot be reused and that the immutable ledger reflects the redemption.
+8. Link a menu item to a published event and verify the badge/window and cancellation behavior in the public shop menu.
+
+Loyalty mutations are online-only. QR values are opaque, hashed at rest, single-use, business/purpose bound, and contain no customer ID or balance. Customers cannot submit spend or alter balances. Until payment development resumes, staff confirmation records a verified external-till purchase but Local Mug does not claim independent payment verification.
 
 ## Database workflow
 
@@ -227,8 +242,8 @@ Mobile features call Supabase through their feature-scoped `api.ts` modules. Aut
 - `profiles.role` controls the primary app experience; business access is granted independently through active `business_memberships`.
 - A business has one protected owner in the MVP and can add staff with permission-based roles.
 - Posts explicitly distinguish news and events, store constrained rich-text JSON, derive draft/scheduled/published state from publication timestamps, and retain cancelled events until archived.
-- Rewards support stamp cards, bonuses, and combos. `reward_items` links a reward to one or more menu items.
-- Stamp changes are stored as immutable transactions. In production, issuing/redeeming stamps should happen through a secure database function or Edge Function, not direct client updates.
+- Rewards support independent stamp and points programmes, versioned rules, programme tiers, balance rewards, reusable perks, promotions, and meal deals.
+- Loyalty balances are derived from an immutable ledger. Staff-verified earning, redemption, and reversal use trusted RPCs and short-lived single-use QR challenges; customers cannot write balances directly.
 - Reviews target either a whole business or one menu item and enforce one review per author/target.
 
 ## Delivery plan
@@ -249,7 +264,7 @@ Mobile features call Supabase through their feature-scoped `api.ts` modules. Aut
 
 ### Phase 3 — Rich loyalty and engagement
 
-- Bonus rewards, meal deals, combos, redemption history, and expiry.
+- Complete physical-device acceptance for QR earning/redemption and production monitoring of loyalty fraud signals.
 - Pinned events, push notifications, saved shops, and personalized feed.
 - Business insights: members, stamp issuance, redemptions, ratings, and popular items.
 - Staff roles and audit history.

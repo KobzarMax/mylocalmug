@@ -27,6 +27,7 @@ import { subscribeToContentNotifications } from './src/features/content/device';
 import { usePushDeviceRefresh } from './src/features/content/hooks';
 import { MarketplaceEntry } from './src/features/marketplace/MarketplaceEntry';
 import { useAccountCacheBoundary } from './src/lib/query/QueryProvider';
+import { CustomerRewardsEntry } from './src/features/rewards/CustomerRewardsEntry';
 
 const C = {
   ink: '#241A16',
@@ -110,7 +111,7 @@ export default function App() {
         <>
             <View style={styles.screen}>
               {tab === 'discover' && <MarketplaceEntry accountId={session.user.id} displayName={profile.display_name} onOpenContent={openContent} />}
-              {tab === 'loyalty' && <Loyalty />}
+              {tab === 'loyalty' && <CustomerRewardsEntry accountId={session.user.id} />}
               {tab === 'news' && <CustomerContentEntry accountId={session.user.id} initialContentId={contentId} onInitialContentHandled={() => setContentId(null)} />}
               {tab === 'profile' && (
                 <ProfileScreen
@@ -195,26 +196,6 @@ function RoleButton(props: {
       </View>
       <Ionicons name="arrow-forward" size={20} color={C.ink} />
     </Pressable>
-  );
-}
-
-function Loyalty() {
-  return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <Text style={styles.hello}>YOUR WALLET</Text><Text style={styles.title}>Rewards</Text>
-      <LinearGradient colors={['#255F4E', '#163F35']} style={styles.walletHero}>
-        <Text style={styles.walletLabel}>TOTAL STAMPS</Text><Text style={styles.walletNumber}>23</Text>
-        <Text style={styles.walletHint}>Across 4 local coffee shops</Text>
-      </LinearGradient>
-      <SectionHeader title="Active stamp cards" />
-      {['Willow & Bean', 'North Star Coffee', 'Paper Cup'].map((name, index) => (
-        <View key={name} style={styles.loyaltyRow}>
-          <View style={styles.miniLogo}><Ionicons name={index === 1 ? 'sunny' : 'cafe'} size={20} color={C.paper} /></View>
-          <View style={{ flex: 1 }}><Text style={styles.menuName}>{name}</Text><Text style={styles.meta}>{[8, 6, 4][index]} of 10 stamps</Text><View style={styles.progress}><View style={[styles.progressFill, { width: `${[80, 60, 40][index]}%` }]} /></View></View>
-          <Ionicons name="chevron-forward" color={C.muted} size={20} />
-        </View>
-      ))}
-    </ScrollView>
   );
 }
 

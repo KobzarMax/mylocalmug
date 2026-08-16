@@ -4,7 +4,7 @@ import { hasPermission } from '../business/permissions';
 import { Workspace } from '../business/types';
 import { LegalEntry } from '../legal/LegalEntry';
 import { BusinessOrderQueue } from '../ordering/components/BusinessOrderQueue';
-import { TillEntry } from '../till/TillEntry';
+import { TillFeature } from '../till/TillFeature';
 import { PaymentHeader } from './components/PaymentHeader';
 import { PaymentSetup } from './components/PaymentSetup';
 import { usePaymentConnections } from './hooks';
@@ -32,7 +32,7 @@ export function PaymentsEntry({ workspace, onBack }: { workspace: Workspace; onB
     <View style={styles.tabs}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item[0].toUpperCase() + item.slice(1)}</Text></Pressable>)}</View>
     {tab === 'setup' ? <PaymentSetup {...state} onLegal={() => setLegal(true)} onStart={(provider) => run(state.start(provider))} onSync={(provider) => void state.sync(provider)} /> : null}
     {tab === 'setup' && state.canConnect && state.connections.some((connection) => connection.provider === 'stripe' && connection.status === 'ready') ? <View style={styles.card}><Text style={styles.cardTitle}>Terminal location</Text><Text style={styles.body}>Create or reuse the Stripe Terminal location mapped to the primary shop location.</Text><Pressable onPress={() => run(setupTerminalLocation(workspace.business.id))} style={styles.button}><Text style={styles.buttonText}>Set up Terminal location</Text></Pressable></View> : null}
-    {tab === 'till' ? <TillEntry businessId={workspace.business.id} /> : null}
+    {tab === 'till' ? <TillFeature businessId={workspace.business.id} /> : null}
     {tab === 'orders' ? <BusinessOrderQueue workspace={workspace} /> : null}
     {tab === 'transactions' ? <BusinessOrderQueue workspace={workspace} transactions /> : null}
   </ScrollView></SafeAreaView>;

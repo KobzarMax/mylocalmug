@@ -21,6 +21,7 @@ export type Permission =
   | 'legal.write'
   | 'legal.approve'
   | 'loyalty.issue'
+  | 'loyalty.reverse'
   | 'analytics.read'
   | 'ownership.transfer';
 

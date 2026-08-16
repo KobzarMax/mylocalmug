@@ -33,6 +33,14 @@
       "@react-native-community/datetimepicker",
       "expo-image",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Local Mug staff to scan a customer's one-time rewards code.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
         "@stripe/stripe-react-native",
         {
           "merchantIdentifier": "merchant.com.kobzarmax.localmug",

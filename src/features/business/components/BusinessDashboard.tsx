@@ -6,20 +6,20 @@ import { hasPermission } from '../permissions';
 import { Permission, Workspace } from '../types';
 import { colors, styles } from '../styles';
 
-export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile, onOpenMenu, onOpenContent, onOpenTeam, onOpenPayments, onReviewApplications }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; onOpenMenu: () => void; onOpenContent: () => void; onOpenTeam: () => void; onOpenPayments: () => void; onReviewApplications?: () => void }) {
+export function BusinessDashboard({ workspace, displayName, onBack, onSignOut, onEditProfile, onOpenMenu, onOpenContent, onOpenRewards, onOpenTeam, onOpenPayments, onReviewApplications }: { workspace: Workspace; displayName: string; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; onOpenMenu: () => void; onOpenContent: () => void; onOpenRewards: () => void; onOpenTeam: () => void; onOpenPayments: () => void; onReviewApplications?: () => void }) {
   const { business, role } = workspace;
   const completion = Math.round(([business.description, business.address, business.contactEmail, business.contactPhone, business.websiteUrl].filter(Boolean).length / 5) * 100);
   const allActions: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; permission: Permission; action?: () => void }[] = [
     { icon: 'storefront-outline', label: 'Edit profile', permission: 'business.profile.write', action: onEditProfile },
     { icon: 'restaurant-outline', label: 'Menu', permission: 'menu.manage', action: onOpenMenu },
     { icon: 'newspaper-outline', label: 'News & events', permission: 'content.manage', action: onOpenContent },
-    { icon: 'gift-outline', label: 'Rewards', permission: 'rewards.manage' },
+    { icon: 'gift-outline', label: 'Rewards', permission: 'rewards.manage', action: onOpenRewards },
     { icon: 'people-outline', label: 'Team', permission: 'team.read', action: onOpenTeam },
     { icon: 'card-outline', label: 'Payments', permission: 'payments.read', action: onOpenPayments },
   ];
   const actions = allActions.filter((item) => item.label === 'Payments'
     ? hasPermission(role, 'payments.read') || hasPermission(role, 'payments.charge')
-    : hasPermission(role, item.permission));
+    : item.label === 'Rewards' ? hasPermission(role, 'rewards.manage') || hasPermission(role, 'loyalty.issue') : hasPermission(role, item.permission));
   if (onReviewApplications) actions.push({ icon: 'shield-checkmark-outline', label: 'Application reviews', permission: 'business.profile.write', action: onReviewApplications });
 
   return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.scroll}>

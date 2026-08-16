@@ -49,7 +49,7 @@ Implemented UI:
 - Loyalty wallet, news, and customer profile screens.
 - Profile editing, avatar upload, email/password changes, and favourite coffee shops.
 
-Customer marketplace/offline status: **CODE DONE; MIGRATION AND DEVICE ACCEPTANCE PENDING**. Published shop catalog/detail/menu and News/Event queries are cached selectively for 24 hours, account-scoped followed data is purged across sessions, remote mutations are disabled offline, and previously downloaded images use disk caching. Loyalty, rewards, and dashboard values remain mock-backed and outside this slice.
+Customer marketplace/offline status: **CODE DONE; MIGRATION AND DEVICE ACCEPTANCE PENDING**. Published shop catalog/detail/menu and News/Event queries are cached selectively for 24 hours, account-scoped followed data is purged across sessions, remote mutations are disabled offline, and previously downloaded images use disk caching. Public reward descriptions may be cached later; private balances, ledger history, and QR state are live-only and excluded from persistence.
 
 ### Business access and applications
 
@@ -132,6 +132,7 @@ The existing Stripe-first implementation is retained as an experimental foundati
 - Customer online-only ASAP pickup basket with PaymentSheet card/Apple Pay/Google Pay and optional hosted PayPal checkout.
 - Ten-minute shop confirmation, staff accept/reject/preparing/ready/completed flow, and idempotent rejection/timeout refunds.
 - Stripe Terminal simulator and WisePad 3 Bluetooth workflow with interruption-safe payment recovery boundaries.
+- Expo Go startup is protected from the native-only Stripe Terminal package; the Till tab reports that a Local Mug development build is required, and eligible native builds load Terminal only on demand.
 - Drizzle `0006`, Supabase `009`, payment validation tests, transactional RLS tests, and five payment Edge Functions.
 
 Do not deploy or configure the payment provider functions as a production payment system until the provider research and architecture below are complete. Stripe may remain an optional terminal or online-checkout provider, but it must not be a required terminal provider.
@@ -161,6 +162,21 @@ Implementation status: **CODE DONE** in commit `ab27d4d`.
 - Transactional anonymous/manager/viewer menu RLS verification script.
 
 Deployment status: Supabase migration `004_menu_management.sql` was applied. The first RLS-test run exposed an invalid test fixture, which was corrected to create transactional `auth.users` records before their linked profiles. A successful rerun of `004_menu_management_rls.sql` and live role/device acceptance are not yet recorded. The customer marketplace still renders mock menu data and will be connected to published menu queries after management verification.
+
+### Rewards and loyalty
+
+Implementation status: **CODE DONE; MIGRATIONS, RLS TEST, AND DEVICE ACCEPTANCE PENDING**.
+
+- Multiple independent stamp and points programmes with immutable, effective-dated rule versions.
+- Configurable item/category earning, integer points per pound, custom unit names, permanent programme tiers, and non-expiring balances.
+- Balance rewards, reusable tier perks, fixed/percentage discounts, and two-group meal-deal bundle pricing.
+- Explicit customer enrolment and a live wallet with balances, lifetime progress, tiers, offers, and ledger history.
+- Staff-verified external-till purchases and staff-validated redemptions using short-lived, hashed, single-use QR challenges.
+- Row-locked/idempotent balance changes, immutable ledger entries, timed issuer undo, permissioned reversals, usage limits, replay detection, and fraud audit events.
+- Event-linked menu items with editable availability, customer badge/message, cancellation handling, and event-only visibility.
+- Drizzle `0007`, Supabase `010`, transactional RLS/fraud tests, validation tests, and SDK 57 camera configuration.
+
+Deployment boundary: apply Drizzle `0007_configurable_loyalty.sql`, then Supabase `010_configurable_loyalty.sql`, and run `010_configurable_loyalty_rls.sql`. Payments remain postponed; staff confirmation records an external-till purchase but does not independently verify payment.
 
 ### News and events
 
@@ -269,6 +285,12 @@ Applied successfully:
 - Drizzle migration `0006_open_joystick.sql`.
 - Supabase migration `009_payments_orders.sql`.
 
+Ready to apply:
+
+- Drizzle migration `0007_configurable_loyalty.sql`.
+- Supabase migration `010_configurable_loyalty.sql`.
+- Transactional verification script `supabase/tests/010_configurable_loyalty_rls.sql`.
+
 Payment-provider deployment is intentionally postponed. The payment Edge Functions, provider credentials, Cron worker, sandbox acceptance, and physical-terminal acceptance are not release-ready.
 
 News/events verification pending:
@@ -300,7 +322,7 @@ on conflict do nothing;
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
 - Menu-management RLS and live role/device acceptance are not yet recorded.
-- Rewards, loyalty, production payment-provider connections, till orders, checkout, and analytics remain incomplete; the UK legal prerequisite and experimental payment foundation are code-complete.
+- Rewards and loyalty are code-complete with database deployment, transactional SQL verification, and physical-device acceptance pending. Production payment-provider connections, till orders, and checkout remain postponed; the UK legal prerequisite and experimental payment foundation are code-complete.
 - News/events backend deployment is complete; RLS rerun, Cron execution evidence, Android FCM, paused iOS APNs registration, and physical-device push/calendar acceptance remain pending.
 - Payments contain a Stripe-first experimental implementation, but the production architecture is postponed until provider research supports business-selected terminals such as Dojo.
 - Offline customer data is read-only by design; queued writes and conflict resolution are not implemented.
@@ -377,11 +399,15 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Add customer preview before publication.
 - Add accessibility, offline, retry, and device-size QA.
 
-### 7. Rewards and loyalty
+### 7. Deploy and accept rewards and loyalty
 
-- Reward creation and menu-item linking.
-- Secure loyalty wallet opening, stamp issuing, redemption, and immutable audit history.
-- Replace mock customer news, rewards, and shop details with live queries.
+- Apply Drizzle `0007`, then Supabase `010`, and run the transactional `010` verification script.
+- Verify programme creation/versioning, publishing, scheduling, pausing, ending, and outstanding-balance archive protection.
+- Verify customer joining, live balances, tier progress, earning QR, redemption QR, meal-deal validation, and replay rejection.
+- Verify owner/admin/manager management, manager/barista issuing, timed undo, denied roles, camera denial, and offline fail-closed behavior.
+- Verify event-linked public menu badges, windows, cancellation, and event-only hiding.
+
+Definition of done: the SQL test passes and a physical-device acceptance run confirms staff-verified earning and redemption cannot be forged or replayed by customers.
 
 ### 8. UK legal profile acceptance
 

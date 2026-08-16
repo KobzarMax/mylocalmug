@@ -18,6 +18,16 @@ import {
 
 export const userRole = pgEnum('user_role', ['client', 'business']);
 export const rewardType = pgEnum('reward_type', ['stamp_card', 'bonus', 'combo']);
+export const loyaltyProgramType = pgEnum('loyalty_program_type', ['stamp', 'points']);
+export const loyaltyProgramStatus = pgEnum('loyalty_program_status', ['draft', 'scheduled', 'active', 'paused', 'ended', 'archived']);
+export const loyaltyEarningMethod = pgEnum('loyalty_earning_method', ['item', 'spend']);
+export const loyaltyOfferKind = pgEnum('loyalty_offer_kind', ['balance_reward', 'tier_perk', 'promotion']);
+export const loyaltyBenefitType = pgEnum('loyalty_benefit_type', ['free_item', 'custom_perk', 'fixed_discount', 'percentage_discount', 'bundle_price']);
+export const loyaltyOfferAudience = pgEnum('loyalty_offer_audience', ['everyone', 'members', 'tier']);
+export const loyaltyUsagePeriod = pgEnum('loyalty_usage_period', ['day', 'week', 'month']);
+export const loyaltyLedgerKind = pgEnum('loyalty_ledger_kind', ['earn', 'redeem', 'reversal', 'migration']);
+export const loyaltyChallengePurpose = pgEnum('loyalty_challenge_purpose', ['earn', 'redeem']);
+export const loyaltyChallengeStatus = pgEnum('loyalty_challenge_status', ['issued', 'claimed', 'consumed', 'expired']);
 export const reviewTarget = pgEnum('review_target', ['business', 'menu_item']);
 export const businessApplicationStatus = pgEnum('business_application_status', [
   'draft',
@@ -805,6 +815,241 @@ export const stampTransactions = pgTable(
   }),
 );
 
+export const loyaltyPrograms = pgTable('loyalty_programs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  type: loyaltyProgramType('type').notNull(),
+  name: text('name').notNull(),
+  description: text('description').default('').notNull(),
+  unitSingular: text('unit_singular').notNull(),
+  unitPlural: text('unit_plural').notNull(),
+  status: loyaltyProgramStatus('status').default('draft').notNull(),
+  currentVersion: integer('current_version').default(1).notNull(),
+  startsAt: timestamp('starts_at', { withTimezone: true }),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  createdBy: uuid('created_by').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+}, (table) => ({
+  businessStatusIdx: index('loyalty_programs_business_status_idx').on(table.businessId, table.status, table.createdAt),
+  versionCheck: check('loyalty_programs_version_check', sql`${table.currentVersion} > 0`),
+  datesCheck: check('loyalty_programs_dates_check', sql`${table.endsAt} is null or ${table.startsAt} is null or ${table.endsAt} > ${table.startsAt}`),
+}));
+
+export const loyaltyProgramVersions = pgTable('loyalty_program_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  programId: uuid('program_id').notNull().references(() => loyaltyPrograms.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  earningMethod: loyaltyEarningMethod('earning_method').notNull(),
+  pointsPerPound: integer('points_per_pound'),
+  terms: text('terms').notNull(),
+  effectiveAt: timestamp('effective_at', { withTimezone: true }).notNull(),
+  createdBy: uuid('created_by').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  programVersionUnique: uniqueIndex('loyalty_program_versions_unique').on(table.programId, table.version),
+  rateCheck: check('loyalty_program_versions_rate_check', sql`(${table.earningMethod} = 'spend' and ${table.pointsPerPound} > 0) or (${table.earningMethod} = 'item' and ${table.pointsPerPound} is null)`),
+}));
+
+export const loyaltyProgramEligibility = pgTable('loyalty_program_eligibility', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  versionId: uuid('version_id').notNull().references(() => loyaltyProgramVersions.id, { onDelete: 'cascade' }),
+  menuItemId: uuid('menu_item_id').references(() => menuItems.id, { onDelete: 'cascade' }),
+  categoryId: uuid('category_id').references(() => menuCategories.id, { onDelete: 'cascade' }),
+  unitsPerItem: integer('units_per_item').default(1).notNull(),
+}, (table) => ({
+  targetCheck: check('loyalty_program_eligibility_target_check', sql`num_nonnulls(${table.menuItemId}, ${table.categoryId}) = 1`),
+  unitsCheck: check('loyalty_program_eligibility_units_check', sql`${table.unitsPerItem} > 0`),
+  itemUnique: uniqueIndex('loyalty_program_eligibility_item_unique').on(table.versionId, table.menuItemId),
+  categoryUnique: uniqueIndex('loyalty_program_eligibility_category_unique').on(table.versionId, table.categoryId),
+}));
+
+export const loyaltyTiers = pgTable('loyalty_tiers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  versionId: uuid('version_id').notNull().references(() => loyaltyProgramVersions.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  threshold: integer('threshold').notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+}, (table) => ({
+  thresholdCheck: check('loyalty_tiers_threshold_check', sql`${table.threshold} >= 0`),
+  thresholdUnique: uniqueIndex('loyalty_tiers_threshold_unique').on(table.versionId, table.threshold),
+}));
+
+export const loyaltyOffers = pgTable('loyalty_offers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  programId: uuid('program_id').references(() => loyaltyPrograms.id, { onDelete: 'cascade' }),
+  tierId: uuid('tier_id').references(() => loyaltyTiers.id, { onDelete: 'set null' }),
+  kind: loyaltyOfferKind('kind').notNull(),
+  benefitType: loyaltyBenefitType('benefit_type').notNull(),
+  audience: loyaltyOfferAudience('audience').default('members').notNull(),
+  title: text('title').notNull(),
+  description: text('description').default('').notNull(),
+  staffInstructions: text('staff_instructions').default('').notNull(),
+  balanceCost: integer('balance_cost'),
+  amountPence: integer('amount_pence'),
+  percentageOff: integer('percentage_off'),
+  usageLimit: integer('usage_limit'),
+  usagePeriod: loyaltyUsagePeriod('usage_period'),
+  startsAt: timestamp('starts_at', { withTimezone: true }),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  businessActiveIdx: index('loyalty_offers_business_active_idx').on(table.businessId, table.isActive, table.startsAt),
+  costCheck: check('loyalty_offers_cost_check', sql`${table.balanceCost} is null or ${table.balanceCost} > 0`),
+  amountCheck: check('loyalty_offers_amount_check', sql`${table.amountPence} is null or ${table.amountPence} >= 0`),
+  percentageCheck: check('loyalty_offers_percentage_check', sql`${table.percentageOff} is null or ${table.percentageOff} between 1 and 100`),
+  usageCheck: check('loyalty_offers_usage_check', sql`(${table.usageLimit} is null and ${table.usagePeriod} is null) or (${table.usageLimit} > 0 and ${table.usagePeriod} is not null)`),
+  datesCheck: check('loyalty_offers_dates_check', sql`${table.endsAt} is null or ${table.startsAt} is null or ${table.endsAt} > ${table.startsAt}`),
+}));
+
+export const loyaltyOfferItems = pgTable('loyalty_offer_items', {
+  offerId: uuid('offer_id').notNull().references(() => loyaltyOffers.id, { onDelete: 'cascade' }),
+  menuItemId: uuid('menu_item_id').notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),
+  quantity: integer('quantity').default(1).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.offerId, table.menuItemId, table.role] }),
+  roleCheck: check('loyalty_offer_items_role_check', sql`${table.role} in ('eligible', 'rewarded')`),
+  quantityCheck: check('loyalty_offer_items_quantity_check', sql`${table.quantity} > 0`),
+}));
+
+export const loyaltyMealDealGroups = pgTable('loyalty_meal_deal_groups', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  offerId: uuid('offer_id').notNull().references(() => loyaltyOffers.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  quantity: integer('quantity').default(1).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+}, (table) => ({ quantityCheck: check('loyalty_meal_deal_groups_quantity_check', sql`${table.quantity} > 0`) }));
+
+export const loyaltyMealDealGroupItems = pgTable('loyalty_meal_deal_group_items', {
+  groupId: uuid('group_id').notNull().references(() => loyaltyMealDealGroups.id, { onDelete: 'cascade' }),
+  menuItemId: uuid('menu_item_id').notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+}, (table) => ({ pk: primaryKey({ columns: [table.groupId, table.menuItemId] }) }));
+
+export const loyaltyAccounts = pgTable('loyalty_accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  programId: uuid('program_id').notNull().references(() => loyaltyPrograms.id, { onDelete: 'restrict' }),
+  customerId: uuid('customer_id').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  balance: integer('balance').default(0).notNull(),
+  lifetimeEarned: integer('lifetime_earned').default(0).notNull(),
+  joinedVersion: integer('joined_version').notNull(),
+  joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  programCustomerUnique: uniqueIndex('loyalty_accounts_program_customer_unique').on(table.programId, table.customerId),
+  balancesCheck: check('loyalty_accounts_balances_check', sql`${table.balance} >= 0 and ${table.lifetimeEarned} >= 0`),
+}));
+
+export const loyaltyTierUnlocks = pgTable('loyalty_tier_unlocks', {
+  accountId: uuid('account_id').notNull().references(() => loyaltyAccounts.id, { onDelete: 'cascade' }),
+  tierId: uuid('tier_id').notNull().references(() => loyaltyTiers.id, { onDelete: 'restrict' }),
+  unlockedAt: timestamp('unlocked_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ pk: primaryKey({ columns: [table.accountId, table.tierId] }) }));
+
+export const loyaltyPurchaseEvents = pgTable('loyalty_purchase_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'restrict' }),
+  customerId: uuid('customer_id').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  verifiedBy: uuid('verified_by').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  finalEligiblePence: integer('final_eligible_pence').notNull(),
+  source: text('source').default('staff_verified_external_sale').notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  reversedAt: timestamp('reversed_at', { withTimezone: true }),
+  reversedBy: uuid('reversed_by').references(() => profiles.id, { onDelete: 'restrict' }),
+  reversalReason: text('reversal_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  verifierIdempotencyUnique: uniqueIndex('loyalty_purchase_events_verifier_idempotency_unique').on(table.verifiedBy, table.idempotencyKey),
+  amountCheck: check('loyalty_purchase_events_amount_check', sql`${table.finalEligiblePence} >= 0`),
+}));
+
+export const loyaltyPurchaseItems = pgTable('loyalty_purchase_items', {
+  purchaseId: uuid('purchase_id').notNull().references(() => loyaltyPurchaseEvents.id, { onDelete: 'cascade' }),
+  menuItemId: uuid('menu_item_id').references(() => menuItems.id, { onDelete: 'set null' }),
+  itemName: text('item_name').notNull(),
+  quantity: integer('quantity').notNull(),
+  wasFree: boolean('was_free').default(false).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.purchaseId, table.itemName] }),
+  quantityCheck: check('loyalty_purchase_items_quantity_check', sql`${table.quantity} between 1 and 99`),
+}));
+
+export const loyaltyLedger = pgTable('loyalty_ledger', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  accountId: uuid('account_id').notNull().references(() => loyaltyAccounts.id, { onDelete: 'restrict' }),
+  kind: loyaltyLedgerKind('kind').notNull(),
+  amount: integer('amount').notNull(),
+  lifetimeAmount: integer('lifetime_amount').default(0).notNull(),
+  purchaseId: uuid('purchase_id').references(() => loyaltyPurchaseEvents.id, { onDelete: 'restrict' }),
+  redemptionId: uuid('redemption_id'),
+  reversalOfId: uuid('reversal_of_id'),
+  actorId: uuid('actor_id').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  idempotencyKey: text('idempotency_key').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdempotencyUnique: uniqueIndex('loyalty_ledger_account_idempotency_unique').on(table.accountId, table.idempotencyKey),
+  amountCheck: check('loyalty_ledger_amount_check', sql`${table.amount} <> 0 or ${table.lifetimeAmount} <> 0`),
+}));
+
+export const loyaltyRedemptions = pgTable('loyalty_redemptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  offerId: uuid('offer_id').notNull().references(() => loyaltyOffers.id, { onDelete: 'restrict' }),
+  accountId: uuid('account_id').references(() => loyaltyAccounts.id, { onDelete: 'restrict' }),
+  customerId: uuid('customer_id').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  consumedBy: uuid('consumed_by').notNull().references(() => profiles.id, { onDelete: 'restrict' }),
+  balanceCost: integer('balance_cost').default(0).notNull(),
+  benefitSnapshot: jsonb('benefit_snapshot').default({}).notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  staffIdempotencyUnique: uniqueIndex('loyalty_redemptions_staff_idempotency_unique').on(table.consumedBy, table.idempotencyKey),
+  costCheck: check('loyalty_redemptions_cost_check', sql`${table.balanceCost} >= 0`),
+}));
+
+export const loyaltyQrChallenges = pgTable('loyalty_qr_challenges', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  customerId: uuid('customer_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  offerId: uuid('offer_id').references(() => loyaltyOffers.id, { onDelete: 'cascade' }),
+  purpose: loyaltyChallengePurpose('purpose').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  status: loyaltyChallengeStatus('status').default('issued').notNull(),
+  claimedBy: uuid('claimed_by').references(() => profiles.id, { onDelete: 'restrict' }),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ tokenUnique: uniqueIndex('loyalty_qr_challenges_token_unique').on(table.tokenHash) }));
+
+export const loyaltyFraudEvents = pgTable('loyalty_fraud_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id').references(() => businesses.id, { onDelete: 'cascade' }),
+  customerId: uuid('customer_id').references(() => profiles.id, { onDelete: 'set null' }),
+  actorId: uuid('actor_id').references(() => profiles.id, { onDelete: 'set null' }),
+  eventType: text('event_type').notNull(),
+  context: jsonb('context').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const eventMenuItems = pgTable('event_menu_items', {
+  eventId: uuid('event_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  menuItemId: uuid('menu_item_id').notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+  badge: text('badge').default('Event special').notNull(),
+  message: text('message').notNull(),
+  availableFrom: timestamp('available_from', { withTimezone: true }).notNull(),
+  availableUntil: timestamp('available_until', { withTimezone: true }).notNull(),
+  eventOnly: boolean('event_only').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.eventId, table.menuItemId] }),
+  datesCheck: check('event_menu_items_dates_check', sql`${table.availableUntil} > ${table.availableFrom}`),
+}));
+
 export const reviews = pgTable(
   'reviews',
   {
@@ -866,5 +1111,12 @@ export type EventNotificationJob = typeof eventNotificationJobs.$inferSelect;
 export type PushDelivery = typeof pushDeliveries.$inferSelect;
 export type Reward = typeof rewards.$inferSelect;
 export type NewReward = typeof rewards.$inferInsert;
+export type LoyaltyProgram = typeof loyaltyPrograms.$inferSelect;
+export type LoyaltyProgramVersion = typeof loyaltyProgramVersions.$inferSelect;
+export type LoyaltyAccount = typeof loyaltyAccounts.$inferSelect;
+export type LoyaltyOffer = typeof loyaltyOffers.$inferSelect;
+export type LoyaltyLedgerEntry = typeof loyaltyLedger.$inferSelect;
+export type LoyaltyRedemption = typeof loyaltyRedemptions.$inferSelect;
+export type EventMenuItem = typeof eventMenuItems.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type NewReview = typeof reviews.$inferInsert;

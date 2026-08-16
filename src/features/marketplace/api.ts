@@ -52,6 +52,14 @@ export async function getPublicBusinessMenu(businessId: string): Promise<PublicM
       description: String(row.item_description ?? ''),
       price: Number(row.item_price),
       photoUrl: row.item_photo_url ? String(row.item_photo_url) : null,
+      event: row.event_id ? {
+        id: String(row.event_id),
+        title: String(row.event_title),
+        badge: String(row.event_badge),
+        message: String(row.event_message),
+        availableFrom: String(row.event_available_from),
+        availableUntil: String(row.event_available_until),
+      } : null,
     });
     categories.set(categoryId, category);
   }

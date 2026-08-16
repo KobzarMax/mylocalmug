@@ -1,6 +1,6 @@
 # Local Mug implementation plan
 
-Last updated: 15 August 2026
+Last updated: 16 August 2026
 
 ## Product goal
 
@@ -121,7 +121,9 @@ Implementation status: **CODE DONE; MIGRATIONS AND LIVE ACCEPTANCE PENDING**.
 
 ### Payments, till, and customer checkout
 
-Implementation status: **CODE COMPLETE; MIGRATION, PROVIDER DEPLOYMENT, AND SANDBOX/DEVICE ACCEPTANCE PENDING**.
+Implementation status: **POSTPONED PENDING PAYMENT-PROVIDER RESEARCH**.
+
+The existing Stripe-first implementation is retained as an experimental foundation, and Drizzle `0006` plus Supabase `009` have been applied. It is not the final product architecture because businesses must be able to connect their own supported terminal provider, such as Dojo, rather than being required to adopt Stripe Terminal.
 
 - UK Stripe Connect direct-charge onboarding and optional PayPal seller referrals behind approved legal profiles.
 - Provider connections, verified/idempotent webhook ledger, browser-return states, leased retry jobs, and normalized provider status.
@@ -132,7 +134,19 @@ Implementation status: **CODE COMPLETE; MIGRATION, PROVIDER DEPLOYMENT, AND SAND
 - Stripe Terminal simulator and WisePad 3 Bluetooth workflow with interruption-safe payment recovery boundaries.
 - Drizzle `0006`, Supabase `009`, payment validation tests, transactional RLS tests, and five payment Edge Functions.
 
-Next actions: apply both migrations, run the `009` SQL test, deploy/configure the payment functions and Cron, complete Stripe/PayPal sandbox acceptance, then run a physical development-build test. PayPal live approval, Apple Merchant credentials, Google Pay production approval, and WisePad 3 remain explicit release gates.
+Do not deploy or configure the payment provider functions as a production payment system until the provider research and architecture below are complete. Stripe may remain an optional terminal or online-checkout provider, but it must not be a required terminal provider.
+
+Research must determine:
+
+- Which UK terminal providers expose supported POS APIs, sandbox environments, terminal discovery, payment-status reconciliation, cancellation, and refund operations.
+- The commercial and certification requirements for Dojo, Stripe Terminal, SumUp, Square, Worldpay, and other realistic providers.
+- Whether Local Mug must register as a software house, reseller, platform, or payment facilitator for each integration.
+- How each business securely authorizes its provider connection without exposing merchant credentials to Expo or public database records.
+- Which providers support reliable webhooks or retrieval APIs for resolving interrupted, expired, or uncertain terminal payments.
+- Whether online card/wallet checkout and in-person terminal payments may use different providers for the same business.
+- Which unsupported terminals may be recorded only as manually confirmed external payments, clearly separated from provider-verified transactions.
+
+When development resumes, introduce a provider-neutral terminal adapter and add integrations incrementally. Because `0006` and `009` are already applied, all schema and security corrections must use new numbered migrations; applied migrations must not be rewritten.
 
 ### Menu management
 
@@ -250,12 +264,12 @@ Applied successfully:
 - Supabase migration `006_event_notification_cron.sql`.
 - Edge Functions `dispatch-event-notifications` and `check-push-receipts`.
 - Vault secrets `project_url`, `anon_key`, and `event_notification_cron_secret`.
-
-Ready to apply:
-
 - Drizzle migration `0005_uk_legal_profiles.sql`.
 - Supabase migration `008_uk_legal_profiles.sql`.
-- Transactional verification script `supabase/tests/008_uk_legal_profiles_rls.sql`.
+- Drizzle migration `0006_open_joystick.sql`.
+- Supabase migration `009_payments_orders.sql`.
+
+Payment-provider deployment is intentionally postponed. The payment Edge Functions, provider credentials, Cron worker, sandbox acceptance, and physical-terminal acceptance are not release-ready.
 
 News/events verification pending:
 
@@ -286,9 +300,9 @@ on conflict do nothing;
 - Business special/holiday hours and multiple locations are missing.
 - Replaced business media files are not yet cleaned up automatically.
 - Menu-management RLS and live role/device acceptance are not yet recorded.
-- Rewards, loyalty, payment-provider connections, till orders, checkout, and analytics remain incomplete; the UK legal prerequisite is code-complete.
+- Rewards, loyalty, production payment-provider connections, till orders, checkout, and analytics remain incomplete; the UK legal prerequisite and experimental payment foundation are code-complete.
 - News/events backend deployment is complete; RLS rerun, Cron execution evidence, Android FCM, paused iOS APNs registration, and physical-device push/calendar acceptance remain pending.
-- Payments and terminals are not implemented.
+- Payments contain a Stripe-first experimental implementation, but the production architecture is postponed until provider research supports business-selected terminals such as Dojo.
 - Offline customer data is read-only by design; queued writes and conflict resolution are not implemented.
 - The invitation RLS test exists as a transactional SQL script, but there is no automated test runner for database functions, hooks, or UI workflows.
 
@@ -369,23 +383,27 @@ Definition of done: the complete application-to-published-profile workflow succe
 - Secure loyalty wallet opening, stamp issuing, redemption, and immutable audit history.
 - Replace mock customer news, rewards, and shop details with live queries.
 
-### 8. UK legal profile and payment connections
+### 8. UK legal profile acceptance
 
-- Apply Drizzle `0005`, then Supabase `008`, and run the transactional `008` verification script.
+- Run the transactional `008` verification script against the applied migrations.
 - Complete finance-draft, owner/admin change-request and approval, denied-role, conflict, and approval-invalidation acceptance.
-- Add provider-neutral Stripe/PayPal connection state only after legal acceptance.
-- Implement UK Stripe Connect hosted onboarding with direct charges and verified idempotent webhooks.
-- Add PayPal partner merchant onboarding as a separate online provider.
 - Keep KYC, identity documents, bank data, and provider secrets outside the Expo application and public tables.
 
-### 9. Terminals
+### 9. Payments and terminals — postponed
 
-- Move development to an Expo development build because Terminal requires native code.
-- Integrate Stripe Terminal with Connect.
-- Add business-location-to-provider-location mapping.
-- Build reader discovery, connection, payment, cancellation, and retry flows.
-- Add a trusted Terminal connection-token endpoint.
-- Test simulated readers, physical readers, and Tap to Pay where supported.
+Priority: deferred until provider and commercial research is complete.
+
+- Define separate provider contracts for in-person terminals and online checkout.
+- Select the first UK terminal integration based on API completeness, merchant onboarding, commercial terms, certification, supported hardware, refunds, and reconciliation. Evaluate Dojo explicitly.
+- Redesign the existing Stripe-specific terminal layer behind a provider-neutral adapter; retain Stripe only as an optional provider.
+- Let each business connect a supported provider using an owner/admin-only hosted or backend-mediated flow.
+- Keep provider credentials in trusted backend secret storage and expose only normalized connection/capability state to the app.
+- Use one provider-neutral till workflow for terminal selection, payment creation, cancellation, uncertain-result recovery, and refunds.
+- Keep online card, Apple Pay, Google Pay, and PayPal capabilities independent from the selected till provider.
+- Add new Drizzle and Supabase migrations rather than editing applied `0006` or `009`.
+- Verify each adapter in its provider sandbox before physical-device and certified-terminal acceptance.
+
+Definition of done: a business can select and securely connect at least one supported terminal provider without being required to use Stripe, the till receives provider-verified final payment state, retries cannot create duplicate charges, and unsupported/manual terminals are never presented as automatically verified.
 
 ### 10. Launch readiness
 

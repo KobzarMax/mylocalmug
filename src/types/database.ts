@@ -2961,6 +2961,10 @@ export type Database = {
         Args: { target_business_id: string; target_category_id: string };
         Returns: undefined;
       };
+      add_default_menu_categories: {
+        Args: { target_business_id: string };
+        Returns: number;
+      };
       disable_push_device: {
         Args: { device_token: string };
         Returns: undefined;

@@ -120,4 +120,15 @@ export const rewardStyles = StyleSheet.create({
   },
   quantity: { minWidth: 34, textAlign: 'center', fontWeight: '800', color: rewardColors.ink },
   divider: { height: 1, backgroundColor: rewardColors.line, marginVertical: 12 },
+  requirementRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: rewardColors.line,
+  },
+  requirementText: { flex: 1, color: rewardColors.ink, fontSize: 14, fontWeight: '700' },
+  requirementComplete: { color: rewardColors.green, fontSize: 12, fontWeight: '800' },
+  requirementMissing: { color: rewardColors.orange, fontSize: 12, fontWeight: '800' },
 });

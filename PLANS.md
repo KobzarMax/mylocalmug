@@ -33,6 +33,7 @@ Implementation status: **CODE DONE; DEVICE AND RESPONSIVE ACCEPTANCE PENDING**.
 - Rebuilt profile editing as a modular feature with typed API operations, image handling, validation, TanStack queries/mutations, rollback, and media cleanup boundaries.
 - Added shared tokens and accessible buttons, fields, cards, headers, state views, segmented controls, status chips, offline notices, date/time fields, and confirmation patterns.
 - Refactored reward programme and offer creation into step-based sections with native/readable date controls, validation summaries, previews, and explicit save/publish actions.
+- Event-menu linking now blocks incomplete setup, explains that an event and menu item are both required, links directly to their creation flows, refreshes on return, and uses validated native/readable availability controls.
 - Migrated business, menu, team, legal, content-management, rewards, and profile reads to non-persisted TanStack Query keys while retaining only approved customer-reading data in the 24-hour cache.
 - Scoped order realtime subscriptions to the active business or customer and standardized safe user-facing error conversion.
 - Generated typed Supabase database definitions and removed broad application-level RPC casting in the remediated paths.
@@ -179,6 +180,7 @@ Implementation status: **CODE DONE** in commit `ab27d4d`.
 - Validated JPEG, PNG, and WebP uploads up to 5 MB with business-scoped paths and replacement/deletion cleanup.
 - Loading, empty, error, busy, confirmation, and unavailable-item states.
 - Supabase migration `004` restricts public reads to published businesses, aligns menu-media policies with `menu.manage`, and blocks cross-business category assignment.
+- Supabase migration `011` seeds five ordinary, editable starter categories for new and currently empty businesses without overwriting non-empty menus. Empty menus expose a permission-checked restore action.
 - Transactional anonymous/manager/viewer menu RLS verification script.
 
 Deployment status: Supabase migration `004_menu_management.sql` was applied. The first RLS-test run exposed an invalid test fixture, which was corrected to create transactional `auth.users` records before their linked profiles. A successful rerun of `004_menu_management_rls.sql` and live role/device acceptance are not yet recorded. The customer marketplace still renders mock menu data and will be connected to published menu queries after management verification.
@@ -326,6 +328,8 @@ Ready to apply:
 - Drizzle migration `0007_configurable_loyalty.sql`.
 - Supabase migration `010_configurable_loyalty.sql`.
 - Transactional verification script `supabase/tests/010_configurable_loyalty_rls.sql`.
+- Supabase migration `011_default_menu_categories.sql`.
+- Transactional verification script `supabase/tests/011_default_menu_categories.sql`.
 
 Payment-provider deployment is intentionally postponed. The payment Edge Functions, provider credentials, Cron worker, sandbox acceptance, and physical-terminal acceptance are not release-ready.
 

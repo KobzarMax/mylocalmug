@@ -4,7 +4,7 @@ const prettier = require('eslint-plugin-prettier/recommended');
 
 module.exports = defineConfig([
   {
-    ignores: ['dist/**', '.expo/**', 'supabase/functions/**', 'drizzle/meta/**'],
+    ignores: ['dist/**', '.expo/**', 'supabase/functions/**', 'drizzle/meta/**', 'expo-env.d.ts'],
   },
   ...expoConfig,
   prettier,

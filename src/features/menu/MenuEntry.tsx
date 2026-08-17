@@ -11,10 +11,20 @@ import { MenuCategory, MenuItem } from './types';
 type CategoryEditor = MenuCategory | 'new' | null;
 type ItemEditor = MenuItem | 'new' | null;
 
-export function MenuEntry({ workspace, onBack }: { workspace: Workspace; onBack: () => void }) {
+export function MenuEntry({
+  workspace,
+  onBack,
+  initialAction,
+}: {
+  workspace: Workspace;
+  onBack: () => void;
+  initialAction?: 'item' | 'category';
+}) {
   const menu = useMenu(workspace.business.id);
-  const [categoryEditor, setCategoryEditor] = useState<CategoryEditor>(null);
-  const [itemEditor, setItemEditor] = useState<ItemEditor>(null);
+  const [categoryEditor, setCategoryEditor] = useState<CategoryEditor>(
+    initialAction === 'category' ? 'new' : null,
+  );
+  const [itemEditor, setItemEditor] = useState<ItemEditor>(initialAction === 'item' ? 'new' : null);
 
   const finishEditing = async () => {
     setCategoryEditor(null);
@@ -53,6 +63,7 @@ export function MenuEntry({ workspace, onBack }: { workspace: Workspace; onBack:
       error={menu.error}
       onBack={onBack}
       onAddCategory={() => setCategoryEditor('new')}
+      onAddDefaults={menu.addDefaults}
       onEditCategory={setCategoryEditor}
       onDeleteCategory={menu.removeCategory}
       onMoveCategory={menu.moveCategory}

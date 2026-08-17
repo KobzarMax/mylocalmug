@@ -6,5 +6,6 @@
     "noUnusedParameters": true,
     "types": ["jest"]
   },
-  "exclude": ["supabase/functions", "experimental"]
+  "exclude": ["supabase/functions", "experimental"],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }

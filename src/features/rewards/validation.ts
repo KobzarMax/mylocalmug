@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { LoyaltyOfferInput, LoyaltyProgramInput, VerifiedPurchaseInput } from './types';
+import { EventMenuLink, LoyaltyOfferInput, LoyaltyProgramInput, VerifiedPurchaseInput } from './types';
 
 const dateString = z.string().datetime({ offset: true });
 const eligibility = z
@@ -133,6 +133,21 @@ export const verifiedPurchaseSchema = z.object({
   finalEligiblePence: z.number().int().min(0).max(1_000_000),
 });
 
+export const eventMenuLinkSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    menuItemId: z.string().uuid(),
+    badge: z.string().trim().min(2).max(40),
+    message: z.string().trim().min(3).max(240),
+    availableFrom: dateString,
+    availableUntil: dateString,
+    eventOnly: z.boolean(),
+  })
+  .refine((value) => new Date(value.availableUntil) > new Date(value.availableFrom), {
+    message: 'Availability must end after it starts.',
+    path: ['availableUntil'],
+  });
+
 export function validateProgram(input: LoyaltyProgramInput) {
   return loyaltyProgramSchema.parse(input);
 }
@@ -141,6 +156,9 @@ export function validateOffer(input: LoyaltyOfferInput) {
 }
 export function validatePurchase(input: VerifiedPurchaseInput) {
   return verifiedPurchaseSchema.parse(input);
+}
+export function validateEventMenuLink(input: EventMenuLink) {
+  return eventMenuLinkSchema.parse(input);
 }
 export function calculateSpendPoints(finalEligiblePence: number, pointsPerPound: number) {
   return Math.floor((finalEligiblePence * pointsPerPound) / 100);

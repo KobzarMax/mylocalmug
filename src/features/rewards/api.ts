@@ -14,7 +14,7 @@ import {
   MenuChoice,
   VerifiedPurchaseInput,
 } from './types';
-import { validateOffer, validateProgram, validatePurchase } from './validation';
+import { validateEventMenuLink, validateOffer, validateProgram, validatePurchase } from './validation';
 
 const key = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
@@ -237,14 +237,15 @@ export async function reversePurchase(purchaseId: string, reason: string) {
   return result.data;
 }
 export async function saveEventMenuLink(input: EventMenuLink) {
+  const parsed = validateEventMenuLink(input);
   const result = await supabase.rpc('save_event_menu_link', {
-    target_event_id: input.eventId,
-    target_menu_item_id: input.menuItemId,
-    badge_text: input.badge,
-    message_text: input.message,
-    available_from: input.availableFrom,
-    available_until: input.availableUntil,
-    is_event_only: input.eventOnly,
+    target_event_id: parsed.eventId,
+    target_menu_item_id: parsed.menuItemId,
+    badge_text: parsed.badge,
+    message_text: parsed.message,
+    available_from: parsed.availableFrom,
+    available_until: parsed.availableUntil,
+    is_event_only: parsed.eventOnly,
   });
   if (result.error) throw result.error;
   return result.data;

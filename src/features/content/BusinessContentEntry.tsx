@@ -13,9 +13,19 @@ type Screen =
   | { type: 'editor'; item: ContentItem | null; kind?: 'news' | 'event' }
   | { type: 'cancel'; item: ContentItem };
 
-export function BusinessContentEntry({ workspace, onBack }: { workspace: Workspace; onBack: () => void }) {
+export function BusinessContentEntry({
+  workspace,
+  onBack,
+  initialCreateKind,
+}: {
+  workspace: Workspace;
+  onBack: () => void;
+  initialCreateKind?: 'news' | 'event';
+}) {
   const content = useBusinessContent(workspace.business.id, workspace.business.name);
-  const [screen, setScreen] = useState<Screen>({ type: 'overview' });
+  const [screen, setScreen] = useState<Screen>(
+    initialCreateKind ? { type: 'editor', item: null, kind: initialCreateKind } : { type: 'overview' },
+  );
   const saved = async () => {
     setScreen({ type: 'overview' });
     await content.refresh();

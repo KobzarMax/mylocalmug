@@ -65,6 +65,13 @@ export async function deleteMenuCategory(businessId: string, categoryId: string)
   if (result.error) throw result.error;
 }
 
+export async function addDefaultMenuCategories(businessId: string) {
+  const result = await supabase.rpc('add_default_menu_categories', {
+    target_business_id: businessId,
+  });
+  if (result.error) throw result.error;
+}
+
 export async function saveMenuItem(
   businessId: string,
   itemId: string | null,

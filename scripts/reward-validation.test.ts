@@ -4,6 +4,7 @@ import {
   calculateItemUnits,
   calculateSpendPoints,
   canIssuerUndo,
+  validateEventMenuLink,
   validateOffer,
   validateProgram,
   validatePurchase,
@@ -55,6 +56,23 @@ assert.equal(
   350,
 );
 assert.throws(() => validatePurchase({ items: [], finalEligiblePence: -1 }));
+
+const eventMenuLink = {
+  eventId: '26000000-0000-4000-8000-000000000010',
+  menuItemId: '46000000-0000-4000-8000-000000000001',
+  badge: 'Festival special',
+  message: 'Available during the summer tasting event.',
+  availableFrom: '2026-08-20T10:00:00.000Z',
+  availableUntil: '2026-08-20T18:00:00.000Z',
+  eventOnly: true,
+};
+assert.equal(validateEventMenuLink(eventMenuLink).badge, 'Festival special');
+assert.throws(() =>
+  validateEventMenuLink({
+    ...eventMenuLink,
+    availableUntil: '2026-08-20T09:59:00.000Z',
+  }),
+);
 
 const offer = {
   programId: '26000000-0000-4000-8000-000000000001',

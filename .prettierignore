@@ -4,3 +4,4 @@ dist
 drizzle/meta
 pnpm-lock.yaml
 supabase/functions
+expo-env.d.ts

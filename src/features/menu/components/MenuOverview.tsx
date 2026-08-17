@@ -19,6 +19,7 @@ type Props = {
   error: string | null;
   onBack: () => void;
   onAddCategory: () => void;
+  onAddDefaults: () => Promise<void>;
   onEditCategory: (category: MenuCategory) => void;
   onDeleteCategory: (category: MenuCategory) => Promise<void>;
   onMoveCategory: (categoryId: string, direction: CategoryDirection) => Promise<void>;
@@ -93,8 +94,23 @@ export function MenuOverview(props: Props) {
           </View>
         ) : props.error ? (
           <MenuError message={props.error} onRetry={props.onRetry} />
-        ) : props.categories.length === 0 && props.items.length === 0 ? (
-          <EmptyMenu onAddCategory={props.onAddCategory} />
+        ) : props.categories.length === 0 ? (
+          <>
+            <EmptyMenu
+              busy={props.busy}
+              onAddCategory={props.onAddCategory}
+              onAddDefaults={() => run(props.onAddDefaults(), 'Could not add starter categories')}
+            />
+            {uncategorized.length > 0 && (
+              <MenuCategorySection
+                name="Uncategorized"
+                items={uncategorized}
+                busy={props.busy}
+                onItem={props.onEditItem}
+                onDeleteItem={confirmItemDelete}
+              />
+            )}
+          </>
         ) : (
           <>
             {props.categories.map((category, index) => (

@@ -15,7 +15,19 @@ import { rewardStyles as s } from './styles';
 import { LoyaltyOffer, LoyaltyProgram } from './types';
 
 type Screen = 'overview' | 'programme' | 'offer' | 'scanner' | 'event';
-export function RewardsEntry({ workspace, onBack }: { workspace: Workspace; onBack: () => void }) {
+export function RewardsEntry({
+  workspace,
+  onBack,
+  onCreateEvent,
+  onCreateMenuItem,
+  navigationVersion = 0,
+}: {
+  workspace: Workspace;
+  onBack: () => void;
+  onCreateEvent: () => void;
+  onCreateMenuItem: () => void;
+  navigationVersion?: number;
+}) {
   const rewards = useBusinessRewards(workspace.business.id);
   const [screen, setScreen] = useState<Screen>('overview');
   const [editing, setEditing] = useState<LoyaltyProgram | null>(null);
@@ -66,7 +78,14 @@ export function RewardsEntry({ workspace, onBack }: { workspace: Workspace; onBa
   if (screen === 'event')
     return (
       <SafeAreaView style={s.safe}>
-        <EventMenuLinkForm businessId={workspace.business.id} menu={rewards.menu} onBack={close} />
+        <EventMenuLinkForm
+          key={navigationVersion}
+          businessId={workspace.business.id}
+          menu={rewards.menu}
+          onBack={close}
+          onCreateEvent={onCreateEvent}
+          onCreateMenuItem={onCreateMenuItem}
+        />
       </SafeAreaView>
     );
   return (

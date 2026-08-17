@@ -36,6 +36,14 @@ insert into public.businesses (id, owner_id, name, slug, is_published) values
   ('21000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000001', 'Draft menu business', 'draft-menu-test', false),
   ('21000000-0000-0000-0000-000000000002', '11000000-0000-0000-0000-000000000001', 'Published menu business', 'published-menu-test', true);
 
+-- Migration 011 seeds new businesses. Remove those rows so this older policy
+-- test can continue exercising its original purpose with explicit fixtures.
+delete from public.menu_categories
+where business_id in (
+  '21000000-0000-0000-0000-000000000001',
+  '21000000-0000-0000-0000-000000000002'
+);
+
 insert into public.business_memberships (business_id, profile_id, role, status) values
   ('21000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000001', 'owner', 'active'),
   ('21000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000002', 'manager', 'active'),

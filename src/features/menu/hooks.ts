@@ -10,6 +10,7 @@ import {
 } from '../../lib/profileImage';
 
 import {
+  addDefaultMenuCategories,
   deleteMenuCategory,
   deleteMenuItem,
   getBusinessMenu,
@@ -45,6 +46,8 @@ export function useMenu(businessId: string) {
   const removeCategory = (category: MenuCategory) =>
     runMutation(() => deleteMenuCategory(businessId, category.id));
 
+  const addDefaults = () => runMutation(() => addDefaultMenuCategories(businessId));
+
   const moveCategory = (categoryId: string, direction: CategoryDirection) => {
     const currentIndex = categories.findIndex((category) => category.id === categoryId);
     const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
@@ -71,6 +74,7 @@ export function useMenu(businessId: string) {
         ? messageFrom(mutation.error, 'Could not update the menu.')
         : null,
     refresh: () => client.invalidateQueries({ queryKey }),
+    addDefaults,
     removeCategory,
     moveCategory,
     removeItem,

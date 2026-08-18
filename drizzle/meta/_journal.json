@@ -57,6 +57,13 @@
       "when": 1786887181642,
       "tag": "0007_configurable_loyalty",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787001677575,
+      "tag": "0008_normalized_menu_categories",
+      "breakpoints": true
     }
   ]
 }

@@ -172,7 +172,7 @@ When development resumes, introduce a provider-neutral terminal adapter and add 
 
 ### Menu management
 
-Implementation status: **CODE DONE** in commit `ab27d4d`.
+Implementation status: **CATEGORY MANAGEMENT CODE DONE; MIGRATIONS AND LIVE ACCEPTANCE PENDING**.
 
 - Permission-routed Menu workspace for owners, administrators, and managers.
 - Menu-category create, rename, delete, and ordering controls.
@@ -181,6 +181,9 @@ Implementation status: **CODE DONE** in commit `ab27d4d`.
 - Loading, empty, error, busy, confirmation, and unavailable-item states.
 - Supabase migration `004` restricts public reads to published businesses, aligns menu-media policies with `menu.manage`, and blocks cross-business category assignment.
 - Supabase migration `011` seeds five ordinary, editable starter categories for new and currently empty businesses without overwriting non-empty menus. Empty menus expose a permission-checked restore action.
+- A dedicated permission-routed category manager centralizes create, rename, reorder, and delete actions while keeping the main menu focused on items.
+- Exact normalized duplicates are database-blocked; PostgreSQL trigram matches warn about similar names and require an explicit override.
+- Drizzle `0008` safely consolidates existing exact duplicates, and Supabase `012` moves category writes behind trusted business-scoped RPCs.
 - Transactional anonymous/manager/viewer menu RLS verification script.
 
 Deployment status: Supabase migration `004_menu_management.sql` was applied. The first RLS-test run exposed an invalid test fixture, which was corrected to create transactional `auth.users` records before their linked profiles. A successful rerun of `004_menu_management_rls.sql` and live role/device acceptance are not yet recorded. The customer marketplace still renders mock menu data and will be connected to published menu queries after management verification.
@@ -330,6 +333,9 @@ Ready to apply:
 - Transactional verification script `supabase/tests/010_configurable_loyalty_rls.sql`.
 - Supabase migration `011_default_menu_categories.sql`.
 - Transactional verification script `supabase/tests/011_default_menu_categories.sql`.
+- Drizzle migration `0008_normalized_menu_categories.sql`.
+- Supabase migrations `012_category_management.sql` and `013_lock_category_management_rpc_grants.sql`.
+- Transactional verification script `supabase/tests/012_category_management.sql`.
 
 Payment-provider deployment is intentionally postponed. The payment Edge Functions, provider credentials, Cron worker, sandbox acceptance, and physical-terminal acceptance are not release-ready.
 
@@ -398,6 +404,7 @@ Priority: immediate.
 
 - Rerun the corrected `supabase/tests/004_menu_management_rls.sql`; confirm it completes and rolls back without an assertion error.
 - Verify category creation, rename, ordering, deletion, and uncategorized-item fallback as an owner.
+- Verify the dedicated manager blocks exact duplicates, warns on similar names, and clears a similarity confirmation after the name changes.
 - Verify item creation, editing, photo replacement/removal, price, availability, and deletion.
 - Verify a manager can manage the menu while viewer, barista, and finance accounts cannot open or mutate it.
 - Verify anonymous/customer accounts cannot read an unpublished menu and can read a published menu.

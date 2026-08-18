@@ -4,18 +4,13 @@ import { Image, Pressable, Text, View } from 'react-native';
 
 import { palette } from '../../../lib/design';
 import { styles } from '../styles';
-import { CategoryDirection, MenuCategory, MenuItem } from '../types';
+import { MenuCategory, MenuItem } from '../types';
 
 type CategorySectionProps = {
   category?: MenuCategory;
   name?: string;
   items: MenuItem[];
-  first?: boolean;
-  last?: boolean;
   busy: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
-  onMove?: (direction: CategoryDirection) => void;
   onItem: (item: MenuItem) => void;
   onDeleteItem: (item: MenuItem) => void;
 };
@@ -28,7 +23,6 @@ export function MenuCategorySection(props: CategorySectionProps) {
         <Text style={styles.categoryCount}>
           {props.items.length} item{props.items.length === 1 ? '' : 's'}
         </Text>
-        {props.category ? <CategoryActions {...props} /> : null}
       </View>
       {props.items.length === 0 ? (
         <Text style={styles.emptyText}>No items in this category yet.</Text>
@@ -44,33 +38,6 @@ export function MenuCategorySection(props: CategorySectionProps) {
         ))
       )}
     </View>
-  );
-}
-
-function CategoryActions(props: CategorySectionProps) {
-  return (
-    <>
-      <SmallButton
-        icon="arrow-up"
-        disabled={props.busy || props.first}
-        label="Move category up"
-        onPress={() => props.onMove?.('up')}
-      />
-      <SmallButton
-        icon="arrow-down"
-        disabled={props.busy || props.last}
-        label="Move category down"
-        onPress={() => props.onMove?.('down')}
-      />
-      <SmallButton icon="pencil-outline" disabled={props.busy} label="Edit category" onPress={props.onEdit} />
-      <SmallButton
-        icon="trash-outline"
-        disabled={props.busy}
-        label="Delete category"
-        danger
-        onPress={props.onDelete}
-      />
-    </>
   );
 }
 

@@ -2,13 +2,19 @@ import { z } from 'zod';
 
 const plainText = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$/u;
 
+export const normalizeMenuCategoryName = (value: string) => value.trim().replace(/\s+/gu, ' ');
+
 export const menuCategoryInputSchema = z.object({
   name: z
     .string()
-    .trim()
-    .min(1, 'Category name is required.')
-    .max(60, 'Category name must be 60 characters or fewer.')
-    .regex(plainText, 'Category name contains unsupported characters.'),
+    .transform(normalizeMenuCategoryName)
+    .pipe(
+      z
+        .string()
+        .min(1, 'Category name is required.')
+        .max(60, 'Category name must be 60 characters or fewer.')
+        .regex(plainText, 'Category name contains unsupported characters.'),
+    ),
 });
 
 const menuPriceSchema = z

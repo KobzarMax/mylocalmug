@@ -63,8 +63,11 @@ select pg_temp.assert_true((select count(*) = 1 from public.menu_items), 'anonym
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"11000000-0000-0000-0000-000000000002","role":"authenticated"}', true);
 select pg_temp.assert_true((select count(*) = 2 from public.menu_categories), 'manager should read own draft and public categories');
+reset role;
 insert into public.menu_categories (id, business_id, name, sort_order)
 values ('32000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', 'Tea', 1);
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"11000000-0000-0000-0000-000000000002","role":"authenticated"}', true);
 insert into public.menu_items (id, business_id, category_id, name, price)
 values ('42000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', '32000000-0000-0000-0000-000000000001', 'Cortado', 3.25);
 

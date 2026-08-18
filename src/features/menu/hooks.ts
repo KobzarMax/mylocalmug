@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { safeErrorMessage } from '../../lib/errors';
 import {
@@ -11,20 +11,18 @@ import {
 
 import {
   addDefaultMenuCategories,
-  deleteMenuCategory,
   deleteMenuItem,
   getBusinessMenu,
   removeMenuPhoto,
-  saveMenuCategory,
-  saveMenuCategoryOrder,
   saveMenuItem,
   uploadMenuPhoto,
 } from './api';
-import { CategoryDirection, MenuCategory, MenuItem, MenuPhoto } from './types';
-import { menuCategoryInputSchema, menuItemInputSchema } from './validation';
+import { menuKeys } from './queryKeys';
+import { MenuCategory, MenuItem, MenuPhoto } from './types';
+import { menuItemInputSchema } from './validation';
 
 export function useMenu(businessId: string) {
-  const queryKey = ['business-menu', businessId] as const;
+  const queryKey = menuKeys.business(businessId);
   const client = useQueryClient();
   const query = useQuery({ queryKey, queryFn: () => getBusinessMenu(businessId), meta: { persist: false } });
   const mutation = useMutation({
@@ -43,19 +41,7 @@ export function useMenu(businessId: string) {
   const categories = query.data?.categories ?? [];
   const items = query.data?.items ?? [];
 
-  const removeCategory = (category: MenuCategory) =>
-    runMutation(() => deleteMenuCategory(businessId, category.id));
-
   const addDefaults = () => runMutation(() => addDefaultMenuCategories(businessId));
-
-  const moveCategory = (categoryId: string, direction: CategoryDirection) => {
-    const currentIndex = categories.findIndex((category) => category.id === categoryId);
-    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= categories.length) return Promise.resolve();
-    const ordered = [...categories];
-    [ordered[currentIndex], ordered[nextIndex]] = [ordered[nextIndex], ordered[currentIndex]];
-    return runMutation(() => saveMenuCategoryOrder(ordered));
-  };
 
   const removeItem = (item: MenuItem) =>
     runMutation(async () => {
@@ -75,39 +61,8 @@ export function useMenu(businessId: string) {
         : null,
     refresh: () => client.invalidateQueries({ queryKey }),
     addDefaults,
-    removeCategory,
-    moveCategory,
     removeItem,
   };
-}
-
-export function useMenuCategoryEditor(
-  businessId: string,
-  category: MenuCategory | null,
-  nextSortOrder: number,
-  onSaved: () => void,
-) {
-  const [name, setName] = useState(category?.name ?? '');
-  const [busy, setBusy] = useState(false);
-
-  const submit = async () => {
-    const parsed = menuCategoryInputSchema.safeParse({ name });
-    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Category name is invalid.');
-    setBusy(true);
-    try {
-      await saveMenuCategory(
-        businessId,
-        category?.id ?? null,
-        parsed.data,
-        category?.sortOrder ?? nextSortOrder,
-      );
-      onSaved();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return { name, setName, busy, submit };
 }
 
 export function useMenuItemEditor(
@@ -197,14 +152,6 @@ async function chooseMenuPhoto(): Promise<MenuPhoto | null> {
   validateProfileImageMetadata(mimeType, bytes.byteLength);
   validateProfileImageBytes(bytes, mimeType);
   return { uri: asset.uri, mimeType };
-}
-
-export function useItemsByCategory(items: MenuItem[]) {
-  return useMemo(() => {
-    const grouped = new Map<string | null, MenuItem[]>();
-    items.forEach((item) => grouped.set(item.categoryId, [...(grouped.get(item.categoryId) ?? []), item]));
-    return grouped;
-  }, [items]);
 }
 
 function messageFrom(caught: unknown, fallback: string) {

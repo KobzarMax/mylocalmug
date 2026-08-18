@@ -2700,6 +2700,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      add_default_menu_categories: {
+        Args: { target_business_id: string };
+        Returns: number;
+      };
       accept_business_invitation: {
         Args: { invitation_token: string };
         Returns: string;
@@ -2797,6 +2801,19 @@ export type Database = {
           target_profile_id: string;
         };
         Returns: undefined;
+      };
+      check_menu_category_name: {
+        Args: {
+          excluded_category_id?: string | null;
+          proposed_name: string;
+          target_business_id: string;
+        };
+        Returns: {
+          category_id: string;
+          category_name: string;
+          match_kind: string;
+          similarity_score: number;
+        }[];
       };
       claim_event_notification_jobs: {
         Args: { batch_size?: number };
@@ -2960,10 +2977,6 @@ export type Database = {
       delete_menu_category: {
         Args: { target_business_id: string; target_category_id: string };
         Returns: undefined;
-      };
-      add_default_menu_categories: {
-        Args: { target_business_id: string };
-        Returns: number;
       };
       disable_push_device: {
         Args: { device_token: string };
@@ -3250,6 +3263,10 @@ export type Database = {
         Args: { target_invitation_id: string };
         Returns: undefined;
       };
+      reorder_menu_categories: {
+        Args: { ordered_category_ids: string[]; target_business_id: string };
+        Returns: undefined;
+      };
       save_business_content: {
         Args: {
           content_body_document: Json;
@@ -3308,6 +3325,21 @@ export type Database = {
         SetofOptions: {
           from: '*';
           to: 'business_legal_profiles';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      save_menu_category: {
+        Args: {
+          allow_similar?: boolean;
+          proposed_name: string;
+          target_business_id: string;
+          target_category_id: string | null;
+        };
+        Returns: Database['public']['Tables']['menu_categories']['Row'];
+        SetofOptions: {
+          from: '*';
+          to: 'menu_categories';
           isOneToOne: true;
           isSetofReturn: false;
         };

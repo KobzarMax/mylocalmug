@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { palette } from '../../../lib/design';
 import { safeErrorMessage } from '../../../lib/errors';
-import { useItemsByCategory } from '../hooks';
+import { useItemsByCategory } from '../selectors';
 import { styles } from '../styles';
-import { CategoryDirection, MenuCategory, MenuItem } from '../types';
+import { MenuCategory, MenuItem } from '../types';
 
 import { EmptyMenu } from './EmptyMenu';
 import { MenuCategorySection } from './MenuCategorySection';
@@ -18,12 +19,10 @@ type Props = {
   busy: boolean;
   error: string | null;
   onBack: () => void;
-  onAddCategory: () => void;
   onAddDefaults: () => Promise<void>;
-  onEditCategory: (category: MenuCategory) => void;
-  onDeleteCategory: (category: MenuCategory) => Promise<void>;
-  onMoveCategory: (categoryId: string, direction: CategoryDirection) => Promise<void>;
   onAddItem: () => void;
+  onCreateCategory: () => void;
+  onManageCategories: () => void;
   onEditItem: (item: MenuItem) => void;
   onDeleteItem: (item: MenuItem) => Promise<void>;
   onRetry: () => void;
@@ -32,24 +31,6 @@ type Props = {
 export function MenuOverview(props: Props) {
   const groupedItems = useItemsByCategory(props.items);
   const uncategorized = groupedItems.get(null) ?? [];
-
-  const confirmCategoryDelete = (category: MenuCategory) => {
-    const itemCount = groupedItems.get(category.id)?.length ?? 0;
-    Alert.alert(
-      'Delete category?',
-      itemCount
-        ? `${itemCount} item${itemCount === 1 ? '' : 's'} will move to Uncategorized.`
-        : 'This category will be removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => run(props.onDeleteCategory(category), 'Could not delete category'),
-        },
-      ],
-    );
-  };
 
   const confirmItemDelete = (item: MenuItem) =>
     Alert.alert('Delete menu item?', `${item.name} and its uploaded photo will be removed.`, [
@@ -71,6 +52,7 @@ export function MenuOverview(props: Props) {
         <View style={styles.actions}>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Add menu item"
             disabled={props.busy}
             onPress={props.onAddItem}
             style={[styles.primaryButton, props.busy && styles.disabled]}
@@ -80,12 +62,13 @@ export function MenuOverview(props: Props) {
           </Pressable>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Manage categories"
             disabled={props.busy}
-            onPress={props.onAddCategory}
+            onPress={props.onManageCategories}
             style={[styles.secondaryButton, props.busy && styles.disabled]}
           >
             <Ionicons name="albums-outline" size={18} color={palette.green} />
-            <Text style={styles.secondaryText}>Add category</Text>
+            <Text style={styles.secondaryText}>Manage categories</Text>
           </Pressable>
         </View>
         {props.loading ? (
@@ -98,7 +81,7 @@ export function MenuOverview(props: Props) {
           <>
             <EmptyMenu
               busy={props.busy}
-              onAddCategory={props.onAddCategory}
+              onAddCategory={props.onCreateCategory}
               onAddDefaults={() => run(props.onAddDefaults(), 'Could not add starter categories')}
             />
             {uncategorized.length > 0 && (
@@ -113,19 +96,12 @@ export function MenuOverview(props: Props) {
           </>
         ) : (
           <>
-            {props.categories.map((category, index) => (
+            {props.categories.map((category) => (
               <MenuCategorySection
                 key={category.id}
                 category={category}
                 items={groupedItems.get(category.id) ?? []}
-                first={index === 0}
-                last={index === props.categories.length - 1}
                 busy={props.busy}
-                onEdit={() => props.onEditCategory(category)}
-                onDelete={() => confirmCategoryDelete(category)}
-                onMove={(direction) =>
-                  run(props.onMoveCategory(category.id, direction), 'Could not reorder categories')
-                }
                 onItem={props.onEditItem}
                 onDeleteItem={confirmItemDelete}
               />

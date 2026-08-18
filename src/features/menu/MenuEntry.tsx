@@ -2,46 +2,33 @@ import { useState } from 'react';
 
 import { Workspace } from '../business/types';
 
-import { CategoryForm } from './components/CategoryForm';
 import { MenuItemForm } from './components/MenuItemForm';
 import { MenuOverview } from './components/MenuOverview';
 import { useMenu } from './hooks';
-import { MenuCategory, MenuItem } from './types';
+import { MenuItem } from './types';
 
-type CategoryEditor = MenuCategory | 'new' | null;
 type ItemEditor = MenuItem | 'new' | null;
 
 export function MenuEntry({
   workspace,
   onBack,
+  onManageCategories,
+  onCreateCategory,
   initialAction,
 }: {
   workspace: Workspace;
   onBack: () => void;
-  initialAction?: 'item' | 'category';
+  onManageCategories: () => void;
+  onCreateCategory: () => void;
+  initialAction?: 'item';
 }) {
   const menu = useMenu(workspace.business.id);
-  const [categoryEditor, setCategoryEditor] = useState<CategoryEditor>(
-    initialAction === 'category' ? 'new' : null,
-  );
   const [itemEditor, setItemEditor] = useState<ItemEditor>(initialAction === 'item' ? 'new' : null);
 
   const finishEditing = async () => {
-    setCategoryEditor(null);
     setItemEditor(null);
     await menu.refresh();
   };
-
-  if (categoryEditor)
-    return (
-      <CategoryForm
-        businessId={workspace.business.id}
-        category={categoryEditor === 'new' ? null : categoryEditor}
-        nextSortOrder={menu.categories.length}
-        onBack={() => setCategoryEditor(null)}
-        onSaved={finishEditing}
-      />
-    );
 
   if (itemEditor)
     return (
@@ -62,12 +49,10 @@ export function MenuEntry({
       busy={menu.busy}
       error={menu.error}
       onBack={onBack}
-      onAddCategory={() => setCategoryEditor('new')}
       onAddDefaults={menu.addDefaults}
-      onEditCategory={setCategoryEditor}
-      onDeleteCategory={menu.removeCategory}
-      onMoveCategory={menu.moveCategory}
       onAddItem={() => setItemEditor('new')}
+      onCreateCategory={onCreateCategory}
+      onManageCategories={onManageCategories}
       onEditItem={setItemEditor}
       onDeleteItem={menu.removeItem}
       onRetry={menu.refresh}

@@ -1,6 +1,7 @@
+import { AppError } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 
-import { MenuCategory, MenuData, MenuItem, MenuPhoto } from './types';
+import { CategoryNameCheck, CategoryNameMatch, MenuCategory, MenuData, MenuItem, MenuPhoto } from './types';
 import { MenuCategoryInput, MenuItemInput } from './validation';
 
 const menuMediaBucket = 'menu-media';
@@ -31,29 +32,46 @@ export async function saveMenuCategory(
   businessId: string,
   categoryId: string | null,
   input: MenuCategoryInput,
-  sortOrder: number,
+  allowSimilar: boolean,
 ) {
-  const payload = { business_id: businessId, name: input.name, sort_order: sortOrder };
-  const result = categoryId
-    ? await supabase
-        .from('menu_categories')
-        .update(payload)
-        .eq('id', categoryId)
-        .eq('business_id', businessId)
-    : await supabase.from('menu_categories').insert(payload);
-  if (result.error) throw result.error;
+  const result = await supabase.rpc('save_menu_category', {
+    target_business_id: businessId,
+    target_category_id: categoryId,
+    proposed_name: input.name,
+    allow_similar: allowSimilar,
+  });
+  if (result.error) throwCategoryError(result.error);
+  return mapCategory(result.data);
 }
 
-export async function saveMenuCategoryOrder(categories: MenuCategory[]) {
-  if (categories.length === 0) return;
-  const result = await supabase.from('menu_categories').upsert(
-    categories.map((category, index) => ({
-      id: category.id,
-      business_id: category.businessId,
-      name: category.name,
-      sort_order: index,
-    })),
-  );
+export async function checkMenuCategoryName(
+  businessId: string,
+  proposedName: string,
+  excludedCategoryId: string | null,
+): Promise<CategoryNameCheck> {
+  const result = await supabase.rpc('check_menu_category_name', {
+    target_business_id: businessId,
+    proposed_name: proposedName,
+    excluded_category_id: excludedCategoryId,
+  });
+  if (result.error) throw result.error;
+  const matches: CategoryNameMatch[] = result.data.map((row) => ({
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    kind: row.match_kind === 'exact' ? 'exact' : 'similar',
+    score: row.similarity_score,
+  }));
+  return {
+    exact: matches.find((match) => match.kind === 'exact') ?? null,
+    similar: matches.filter((match) => match.kind === 'similar'),
+  };
+}
+
+export async function reorderMenuCategories(businessId: string, categoryIds: string[]) {
+  const result = await supabase.rpc('reorder_menu_categories', {
+    target_business_id: businessId,
+    ordered_category_ids: categoryIds,
+  });
   if (result.error) throw result.error;
 }
 
@@ -171,4 +189,17 @@ function mapItem(row: MenuItemRow): MenuItem {
     isAvailable: row.is_available,
     createdAt: row.created_at,
   };
+}
+
+function throwCategoryError(error: { message: string }): never {
+  if (error.message.includes('A category with this name already exists')) {
+    throw new AppError('A category with this name already exists.', 'validation');
+  }
+  if (error.message.includes('A similar category already exists')) {
+    throw new AppError(
+      'A similar category was added elsewhere. Review the matches and try again.',
+      'conflict',
+    );
+  }
+  throw error;
 }

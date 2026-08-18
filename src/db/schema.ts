@@ -501,14 +501,23 @@ export const favoriteBusinesses = pgTable(
   }),
 );
 
-export const menuCategories = pgTable('menu_categories', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  businessId: uuid('business_id')
-    .notNull()
-    .references(() => businesses.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  sortOrder: integer('sort_order').default(0).notNull(),
-});
+export const menuCategories = pgTable(
+  'menu_categories',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+  },
+  (table) => ({
+    normalizedNameUnique: uniqueIndex('menu_categories_business_normalized_name_unique').on(
+      table.businessId,
+      sql`lower(regexp_replace(btrim(${table.name}), '[[:space:]]+', ' ', 'g'))`,
+    ),
+  }),
+);
 
 export const menuItems = pgTable(
   'menu_items',

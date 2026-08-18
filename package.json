@@ -75,10 +75,11 @@
     "test:content": "tsx scripts/content-validation.test.ts && tsx scripts/push-delivery.test.ts",
     "test:offline": "tsx scripts/offline-cache.test.ts",
     "test:legal": "tsx scripts/legal-validation.test.ts",
+    "test:menu": "jest --runInBand src/features/menu",
     "test:payments": "tsx scripts/payment-validation.test.ts",
     "test:rewards": "tsx scripts/reward-validation.test.ts",
     "test:ui": "jest --runInBand",
-    "test": "pnpm run test:content && pnpm run test:offline && pnpm run test:legal && pnpm run test:payments && pnpm run test:rewards && pnpm run test:ui",
+    "test": "pnpm run test:content && pnpm run test:offline && pnpm run test:legal && pnpm run test:menu && pnpm run test:payments && pnpm run test:rewards && pnpm run test:ui",
     "lint": "expo lint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -53,8 +53,11 @@ To connect Supabase:
 12. Run `pnpm run db:migrate` to apply `drizzle/0005_uk_legal_profiles.sql`, then apply `supabase/migrations/008_uk_legal_profiles.sql`.
 13. Run `supabase/tests/008_uk_legal_profiles_rls.sql`; it is transactional and rolls back its fixtures.
 14. Apply `supabase/migrations/011_default_menu_categories.sql`, then run `supabase/tests/011_default_menu_categories.sql`.
-15. Put the project URL and publishable/anon key in `.env`.
-16. Restart Expo so the public environment variables are bundled.
+15. Run `pnpm run db:migrate` to apply `drizzle/0008_normalized_menu_categories.sql`, then apply `supabase/migrations/012_category_management.sql`.
+16. Apply `supabase/migrations/013_lock_category_management_rpc_grants.sql` to explicitly deny anonymous category-management RPC execution.
+17. Run `supabase/tests/012_category_management.sql`; it is transactional and rolls back its fixtures.
+17. Put the project URL and publishable/anon key in `.env`.
+18. Restart Expo so the public environment variables are bundled.
 
 ### Menu management deployment
 
@@ -62,12 +65,15 @@ New businesses receive five editable starter categories. Existing non-empty menu
 
 After the existing menu migration and test, apply `supabase/migrations/011_default_menu_categories.sql` and run `supabase/tests/011_default_menu_categories.sql`. Migration `011` changes seeding and trusted operations only; it does not require a Drizzle schema migration.
 
+For dedicated category management, apply Drizzle `0008_normalized_menu_categories.sql`, then Supabase `012_category_management.sql` and `013_lock_category_management_rpc_grants.sql`, and finally run `supabase/tests/012_category_management.sql`. Migration `0008` consolidates existing normalized duplicates without losing their menu items. Migration `012` adds permission-checked save, similarity-check, and reorder operations and revokes direct category writes. Migration `013` explicitly removes any Supabase-managed anonymous execution grants from those trusted operations.
+
 1. Apply `supabase/migrations/004_menu_management.sql` in the Supabase SQL Editor.
 2. Run `supabase/tests/004_menu_management_rls.sql`. Success returns without an assertion error and the transaction rolls back all test data.
 3. Restart or reload the app, then open **Profile → Business portal → Menu** as an owner, administrator, or manager.
-4. Create and reorder categories; create an item with a price and photo; edit availability; replace/remove the photo; then delete the item.
-5. Confirm viewer, barista, and finance accounts do not receive the Menu management action.
-6. Keep the business unpublished and confirm customer/anonymous database reads return no menu rows; publish it and confirm those rows become readable.
+4. Open **Manage categories** and verify exact duplicates are blocked while similar names require explicit confirmation.
+5. Create and reorder categories; create an item with a price and photo; edit availability; replace/remove the photo; then delete the item.
+6. Confirm viewer, barista, and finance accounts do not receive the Menu management action.
+7. Keep the business unpublished and confirm customer/anonymous database reads return no menu rows; publish it and confirm those rows become readable.
 
 ### Supabase email confirmation
 

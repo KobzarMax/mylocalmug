@@ -13,6 +13,10 @@ export default function BusinessMenuRoute() {
           workspace={workspace}
           initialAction={params.create === 'item' ? 'item' : undefined}
           onBack={() => router.back()}
+          onCreateCategory={() =>
+            router.push({ pathname: '/business/menu/categories', params: { create: 'category' } })
+          }
+          onManageCategories={() => router.push('/business/menu/categories')}
         />
       )}
     </RequireBusinessWorkspace>

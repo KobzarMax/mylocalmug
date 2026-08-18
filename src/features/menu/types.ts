@@ -24,6 +24,18 @@ export type MenuData = {
   items: MenuItem[];
 };
 
+export type CategoryNameMatch = {
+  categoryId: string;
+  categoryName: string;
+  kind: 'exact' | 'similar';
+  score: number;
+};
+
+export type CategoryNameCheck = {
+  exact: CategoryNameMatch | null;
+  similar: CategoryNameMatch[];
+};
+
 export type MenuPhoto = {
   uri: string;
   mimeType: ProfileImageMime;

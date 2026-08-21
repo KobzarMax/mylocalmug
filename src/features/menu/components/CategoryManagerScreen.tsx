@@ -98,18 +98,14 @@ export function CategoryManagerScreen({
               <Text style={cs.listTitle}>Your categories</Text>
               <Text style={cs.count}>{manager.categories.length} total</Text>
             </View>
-            {manager.categories.map((category, index) => (
+            {manager.categories.map((category) => (
               <CategoryManagerRow
                 key={category.id}
                 busy={manager.busy}
                 category={category}
-                first={index === 0}
                 itemCount={manager.itemCounts.get(category.id) ?? 0}
-                last={index === manager.categories.length - 1}
                 onDelete={() => confirmDelete(category)}
                 onEdit={() => manager.openEditor(category)}
-                onMoveDown={() => void manager.move(category.id, 'down').catch(() => undefined)}
-                onMoveUp={() => void manager.move(category.id, 'up').catch(() => undefined)}
               />
             ))}
           </>

@@ -175,7 +175,7 @@ When development resumes, introduce a provider-neutral terminal adapter and add 
 Implementation status: **CATEGORY MANAGEMENT CODE DONE; MIGRATIONS AND LIVE ACCEPTANCE PENDING**.
 
 - Permission-routed Menu workspace for owners, administrators, and managers.
-- Menu-category create, rename, delete, and ordering controls.
+- Menu-category create, rename, and delete controls with compact icon-based management rows.
 - Menu-item create, edit, delete, price, description, category, photo, and availability controls.
 - Validated JPEG, PNG, and WebP uploads up to 5 MB with business-scoped paths and replacement/deletion cleanup.
 - Loading, empty, error, busy, confirmation, and unavailable-item states.

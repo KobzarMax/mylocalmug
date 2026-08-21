@@ -69,14 +69,6 @@ export async function checkMenuCategoryName(
   };
 }
 
-export async function reorderMenuCategories(businessId: string, categoryIds: string[]) {
-  const result = await supabase.rpc('reorder_menu_categories', {
-    target_business_id: businessId,
-    ordered_category_ids: categoryIds,
-  });
-  if (result.error) throw result.error;
-}
-
 export async function deleteMenuCategory(businessId: string, categoryId: string) {
   const result = await supabase.rpc('delete_menu_category', {
     target_business_id: businessId,

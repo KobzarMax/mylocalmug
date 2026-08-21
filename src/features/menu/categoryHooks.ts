@@ -9,11 +9,10 @@ import {
   checkMenuCategoryName,
   deleteMenuCategory,
   getBusinessMenu,
-  reorderMenuCategories,
   saveMenuCategory,
 } from './api';
 import { menuKeys } from './queryKeys';
-import { CategoryDirection, MenuCategory } from './types';
+import { MenuCategory } from './types';
 import { menuCategoryInputSchema, normalizeMenuCategoryName } from './validation';
 
 type CategoryEditor = MenuCategory | 'new' | null;
@@ -70,10 +69,6 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
       await invalidate();
     },
   });
-  const orderMutation = useMutation({
-    mutationFn: (ids: string[]) => reorderMenuCategories(businessId, ids),
-    onSuccess: invalidate,
-  });
   const deleteMutation = useMutation({
     mutationFn: (categoryId: string) => deleteMenuCategory(businessId, categoryId),
     onSuccess: async () => {
@@ -103,15 +98,10 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     editor && parsedName.success && (debouncedName !== normalizedName || nameCheck.isFetching),
   );
   const similarConfirmed = confirmedSimilarName === normalizedName;
-  const busy =
-    saveMutation.isPending ||
-    orderMutation.isPending ||
-    deleteMutation.isPending ||
-    defaultsMutation.isPending;
+  const busy = saveMutation.isPending || deleteMutation.isPending || defaultsMutation.isPending;
 
   const openEditor = (next: MenuCategory | 'new') => {
     saveMutation.reset();
-    orderMutation.reset();
     deleteMutation.reset();
     defaultsMutation.reset();
     setEditor(next);
@@ -155,15 +145,6 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
       setValidationError(safeErrorMessage(caught, 'Could not save this category.'));
     }
   };
-  const move = async (categoryId: string, direction: CategoryDirection) => {
-    const currentIndex = categories.findIndex((category) => category.id === categoryId);
-    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= categories.length) return;
-    const ordered = [...categories];
-    [ordered[currentIndex], ordered[nextIndex]] = [ordered[nextIndex], ordered[currentIndex]];
-    await orderMutation.mutateAsync(ordered.map((category) => category.id));
-  };
-
   return {
     categories,
     itemCounts,
@@ -179,11 +160,8 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     busy,
     error: menuQuery.error
       ? safeErrorMessage(menuQuery.error, 'Could not load categories.')
-      : orderMutation.error || deleteMutation.error || defaultsMutation.error
-        ? safeErrorMessage(
-            orderMutation.error ?? deleteMutation.error ?? defaultsMutation.error,
-            'Could not update categories.',
-          )
+      : deleteMutation.error || defaultsMutation.error
+        ? safeErrorMessage(deleteMutation.error ?? defaultsMutation.error, 'Could not update categories.')
         : null,
     editorError: validationError
       ? validationError
@@ -198,7 +176,6 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     confirmSimilar: () => setConfirmedSimilarName(normalizedName),
     retryNameCheck: () => void nameCheck.refetch(),
     save,
-    move,
     remove: (categoryId: string) => deleteMutation.mutateAsync(categoryId),
     addDefaults: () => defaultsMutation.mutateAsync(),
     refresh: invalidate,

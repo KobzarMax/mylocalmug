@@ -42,5 +42,3 @@ export type MenuPhoto = {
   uri: string;
   mimeType: ProfileImageMime;
 };
-
-export type CategoryDirection = 'up' | 'down';

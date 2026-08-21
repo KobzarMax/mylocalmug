@@ -15,21 +15,11 @@ describe('CategoryManagerRow', () => {
     const edit = jest.fn();
     const remove = jest.fn();
     await render(
-      <CategoryManagerRow
-        busy={false}
-        category={category}
-        first
-        itemCount={2}
-        last={false}
-        onDelete={remove}
-        onEdit={edit}
-        onMoveDown={jest.fn()}
-        onMoveUp={jest.fn()}
-      />,
+      <CategoryManagerRow busy={false} category={category} itemCount={2} onDelete={remove} onEdit={edit} />,
     );
 
     expect(screen.getByText('2 items')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Move Coffee up' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Move Coffee/ })).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Edit Coffee' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Delete Coffee' }));
     expect(edit).toHaveBeenCalledTimes(1);

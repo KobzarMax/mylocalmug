@@ -343,6 +343,10 @@ Ready to apply:
 - Supabase migration `015_restore_default_category_trigger.sql`.
 - Supabase migration `016_rebuild_default_category_icon_trigger.sql`.
 - Transactional verification script `supabase/tests/014_category_menu_icons.sql`.
+- Drizzle migration `0010_nosy_maelstrom.sql` adds required, contrast-checked business brand colours with Local Mug defaults.
+- Supabase migration `017_business_brand_palettes.sql` safely exposes branding through public marketplace and content RPCs.
+- Business Profile now includes accessible swatches, normalized hex entry, reset, contrast validation, and live previews. Customer shop/content cards and detail pages resolve the business palette while preserving semantic system colours.
+- Transactional verification script `supabase/tests/017_business_brand_palettes_rls.sql` covers defaults, constraints, role isolation, and safe public exposure.
 
 Payment-provider deployment is intentionally postponed. The payment Edge Functions, provider credentials, Cron worker, sandbox acceptance, and physical-terminal acceptance are not release-ready.
 

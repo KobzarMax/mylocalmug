@@ -60,8 +60,10 @@ To connect Supabase:
 19. Apply `supabase/migrations/015_restore_default_category_trigger.sql` to guarantee starter-category creation on databases where the migration `011` trigger is absent.
 20. Apply `supabase/migrations/016_rebuild_default_category_icon_trigger.sql` to replace any remaining name-only migration `011` trigger function with the icon-aware definition.
 21. Run `supabase/tests/014_category_menu_icons.sql`; it is transactional and rolls back its fixtures.
-22. Put the project URL and publishable/anon key in `.env`.
-23. Restart Expo so the public environment variables are bundled.
+22. Run `pnpm run db:migrate` to apply `drizzle/0010_nosy_maelstrom.sql`, then apply `supabase/migrations/017_business_brand_palettes.sql`.
+23. Run `supabase/tests/017_business_brand_palettes_rls.sql`; it verifies palette defaults, contrast constraints, profile permissions, and safe public responses transactionally.
+24. Put the project URL and publishable/anon key in `.env`.
+25. Restart Expo so the public environment variables are bundled.
 
 ### Menu management deployment
 
@@ -72,6 +74,8 @@ After the existing menu migration and test, apply `supabase/migrations/011_defau
 For dedicated category management, apply Drizzle `0008_normalized_menu_categories.sql`, then Supabase `012_category_management.sql` and `013_lock_category_management_rpc_grants.sql`, and finally run `supabase/tests/012_category_management.sql`. Migration `0008` consolidates existing normalized duplicates without losing their menu items. Migration `012` adds permission-checked save, similarity-check, and reorder operations and revokes direct category writes. Migration `013` explicitly removes any Supabase-managed anonymous execution grants from those trusted operations.
 
 For category-owned menu icons, apply Drizzle `0009_ambitious_warlock.sql`, then Supabase `014_category_menu_icons.sql`, `015_restore_default_category_trigger.sql`, and `016_rebuild_default_category_icon_trigger.sql`, and run `supabase/tests/014_category_menu_icons.sql`. Migration `0009` adds and backfills the constrained icon key. Migration `014` updates trusted category saves, starter-category icons, and the event-aware public menu response. Migration `015` restores an absent trigger and repairs only completely empty category lists. Migration `016` atomically replaces any remaining migration `011` name-only trigger function with the icon-aware definition.
+
+For business branding, apply Drizzle `0010_nosy_maelstrom.sql` before Supabase `017_business_brand_palettes.sql`, then run `supabase/tests/017_business_brand_palettes_rls.sql`. The Drizzle migration stores and validates the three-colour palette; Supabase `017` exposes only those safe colours through public catalog, detail, and content RPCs.
 
 1. Apply `supabase/migrations/004_menu_management.sql` in the Supabase SQL Editor.
 2. Run `supabase/tests/004_menu_management_rls.sql`. Success returns without an assertion error and the transaction rolls back all test data.

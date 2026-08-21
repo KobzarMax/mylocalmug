@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } f
 
 import { CachedImage } from '../../../components/CachedImage';
 import { OfflineNotice } from '../../../components/OfflineNotice';
-import { palette } from '../../../lib/design';
+import { resolveBusinessTheme } from '../../branding/theme';
 import { useBusinessFollow, useEventCalendar } from '../hooks';
 import { styles } from '../styles';
 import { ContentDetail } from '../types';
@@ -27,6 +27,7 @@ export function ContentDetailScreen({
   onMoreFromBusiness: (businessId: string, businessName: string) => void;
 }) {
   const follow = useBusinessFollow(accountId, item.businessId);
+  const theme = resolveBusinessTheme(item.brandPalette);
   const calendar = useEventCalendar(item);
   const addToCalendar = () =>
     calendar
@@ -45,7 +46,11 @@ export function ContentDetailScreen({
       ),
     );
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 48, backgroundColor: theme.background }}
+      style={{ backgroundColor: theme.background }}
+      showsVerticalScrollIndicator={false}
+    >
       {(item.coverPath || item.coverUrl) && (
         <CachedImage
           uri={item.coverUrl}
@@ -54,25 +59,25 @@ export function ContentDetailScreen({
           accessibilityLabel={`${item.title} cover`}
         />
       )}
-      <View style={styles.detailBody}>
+      <View style={[styles.detailBody, { backgroundColor: theme.background }]}>
         <OfflineNotice isOnline={isOnline} updatedAt={dataUpdatedAt} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
           onPress={onBack}
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
-          <Ionicons name="arrow-back" size={21} color={palette.green} />
+          <Ionicons name="arrow-back" size={21} color={theme.primary} />
         </Pressable>
-        <Text style={styles.overline}>
+        <Text style={[styles.overline, { color: theme.accent }]}>
           {item.kind}
           {item.isPinned ? ' · pinned' : ''}
         </Text>
-        <Text style={styles.detailTitle}>{item.title}</Text>
-        <Text style={styles.meta}>
+        <Text style={[styles.detailTitle, { color: theme.text }]}>{item.title}</Text>
+        <Text style={[styles.meta, { color: theme.mutedText }]}>
           By {item.authorDisplayName} for {item.businessName}
         </Text>
-        <Text style={styles.excerpt}>{item.excerpt}</Text>
+        <Text style={[styles.excerpt, { color: theme.mutedText }]}>{item.excerpt}</Text>
         {item.eventCancelledAt && (
           <View style={styles.cancellation}>
             <Text style={styles.cancellationTitle}>Event cancelled</Text>
@@ -80,16 +85,16 @@ export function ContentDetailScreen({
           </View>
         )}
         {item.kind === 'event' && item.eventStartsAt && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.cardTitle}>
+          <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>
               {formatEventDate(item.eventStartsAt, item.eventAllDay, item.eventTimezone)}
             </Text>
             {item.eventEndsAt && (
-              <Text style={styles.meta}>
+              <Text style={[styles.meta, { color: theme.mutedText }]}>
                 Ends {formatEventDate(item.eventEndsAt, item.eventAllDay, item.eventTimezone)}
               </Text>
             )}
-            <Text style={styles.excerpt}>
+            <Text style={[styles.excerpt, { color: theme.mutedText }]}>
               {[item.eventVenueName, item.eventVenueAddress].filter(Boolean).join(' · ') ||
                 'Venue to be confirmed'}
             </Text>
@@ -101,28 +106,28 @@ export function ContentDetailScreen({
                 style={[styles.secondaryButton, { marginTop: 14 }, calendar.busy && styles.disabled]}
               >
                 {calendar.busy ? (
-                  <ActivityIndicator color={palette.green} />
+                  <ActivityIndicator color={theme.primary} />
                 ) : (
                   <>
-                    <Ionicons name="calendar-outline" size={18} color={palette.green} />
-                    <Text style={styles.secondaryText}>Add to calendar</Text>
+                    <Ionicons name="calendar-outline" size={18} color={theme.primary} />
+                    <Text style={[styles.secondaryText, { color: theme.primary }]}>Add to calendar</Text>
                   </>
                 )}
               </Pressable>
             )}
           </View>
         )}
-        <RichTextReader document={item.bodyDocument} />
-        <View style={styles.sectionCard}>
-          <Text style={styles.cardTitle}>{item.businessName}</Text>
+        <RichTextReader document={item.bodyDocument} theme={theme} />
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>{item.businessName}</Text>
           {follow.loading ? (
-            <ActivityIndicator color={palette.green} />
+            <ActivityIndicator color={theme.primary} />
           ) : follow.following ? (
             <>
               <View style={styles.switchRow}>
                 <View style={styles.switchCopy}>
-                  <Text style={styles.switchTitle}>Event alerts</Text>
-                  <Text style={styles.switchHint}>
+                  <Text style={[styles.switchTitle, { color: theme.text }]}>Event alerts</Text>
+                  <Text style={[styles.switchHint, { color: theme.mutedText }]}>
                     Receive reminders, updates, and cancellations from this shop.
                   </Text>
                 </View>
@@ -130,17 +135,19 @@ export function ContentDetailScreen({
                   disabled={follow.busy || !follow.isOnline}
                   value={follow.eventNotificationsEnabled}
                   onValueChange={(value) => run(() => follow.setAlerts(value))}
-                  trackColor={{ false: palette.controlTrack, true: palette.mint }}
-                  thumbColor={follow.eventNotificationsEnabled ? palette.green : palette.muted}
+                  trackColor={{ false: theme.border, true: theme.primarySoft }}
+                  thumbColor={follow.eventNotificationsEnabled ? theme.primary : theme.mutedText}
                 />
               </View>
               <View style={[styles.actions, { marginTop: 12 }]}>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => onMoreFromBusiness(item.businessId, item.businessName)}
-                  style={styles.primaryButton}
+                  style={[styles.primaryButton, { backgroundColor: theme.primary }]}
                 >
-                  <Text style={styles.primaryText}>More from this shop</Text>
+                  <Text style={[styles.primaryText, { color: theme.primaryForeground }]}>
+                    More from this shop
+                  </Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -157,21 +164,25 @@ export function ContentDetailScreen({
               accessibilityRole="button"
               disabled={follow.busy || !follow.isOnline}
               onPress={() => run(follow.follow)}
-              style={[styles.primaryButton, { marginTop: 12 }, !follow.isOnline && styles.disabled]}
+              style={[
+                styles.primaryButton,
+                { marginTop: 12, backgroundColor: theme.primary },
+                !follow.isOnline && styles.disabled,
+              ]}
             >
               {follow.busy ? (
-                <ActivityIndicator color={palette.paper} />
+                <ActivityIndicator color={theme.primaryForeground} />
               ) : (
                 <>
-                  <Ionicons name="person-add-outline" size={18} color={palette.paper} />
-                  <Text style={styles.primaryText}>
+                  <Ionicons name="person-add-outline" size={18} color={theme.primaryForeground} />
+                  <Text style={[styles.primaryText, { color: theme.primaryForeground }]}>
                     {follow.isOnline ? 'Follow shop and enable alerts' : 'Reconnect to follow this shop'}
                   </Text>
                 </>
               )}
             </Pressable>
           )}
-          {follow.notice && <Text style={styles.meta}>{follow.notice}</Text>}
+          {follow.notice && <Text style={[styles.meta, { color: theme.mutedText }]}>{follow.notice}</Text>}
         </View>
       </View>
     </ScrollView>

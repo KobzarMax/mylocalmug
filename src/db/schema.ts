@@ -246,6 +246,9 @@ export const businesses = pgTable(
     longitude: doublePrecision('longitude'),
     logoUrl: text('logo_url'),
     headerUrl: text('header_url'),
+    brandPrimaryColor: text('brand_primary_color').default('#235C4B').notNull(),
+    brandAccentColor: text('brand_accent_color').default('#D06E38').notNull(),
+    brandBackgroundColor: text('brand_background_color').default('#F7F2EA').notNull(),
     socialLinks: jsonb('social_links').default({}).notNull(),
     category: text('category').default('Independent coffee shop').notNull(),
     contactEmail: text('contact_email').default('').notNull(),
@@ -258,6 +261,14 @@ export const businesses = pgTable(
   },
   (table) => ({
     slugIdx: uniqueIndex('businesses_slug_unique').on(table.slug),
+    brandColorsCheck: check(
+      'businesses_brand_colors_check',
+      sql`${table.brandPrimaryColor} ~ '^#[0-9A-F]{6}$' and ${table.brandAccentColor} ~ '^#[0-9A-F]{6}$' and ${table.brandBackgroundColor} ~ '^#[0-9A-F]{6}$'`,
+    ),
+    brandContrastCheck: check(
+      'businesses_brand_contrast_check',
+      sql`public.brand_color_contrast(${table.brandPrimaryColor}, ${table.brandBackgroundColor}) >= 3 and public.brand_color_contrast(${table.brandAccentColor}, ${table.brandBackgroundColor}) >= 3`,
+    ),
   }),
 );
 

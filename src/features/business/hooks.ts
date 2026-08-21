@@ -14,6 +14,8 @@ import {
   validateProfileImageMetadata,
 } from '../../lib/profileImage';
 import { supabase } from '../../lib/supabase';
+import { businessBrandPaletteSchema, DEFAULT_BUSINESS_PALETTE } from '../branding/theme';
+import { BusinessBrandPalette } from '../branding/types';
 
 import {
   getBusinessApplication,
@@ -185,6 +187,7 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
   const [hoursLoading, setHoursLoading] = useState(Boolean(workspace.location));
   const [logo, setLogo] = useState<SelectedMedia | null>(null);
   const [header, setHeader] = useState<SelectedMedia | null>(null);
+  const [brandPalette, setBrandPalette] = useState<BusinessBrandPalette>(workspace.business.brandPalette);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -229,6 +232,9 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
   const save = async () => {
     const parsed = businessProfileInputSchema.safeParse(form);
     if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Some details are invalid.');
+    const parsedPalette = businessBrandPaletteSchema.safeParse(brandPalette);
+    if (!parsedPalette.success)
+      throw new Error(parsedPalette.error.issues[0]?.message ?? 'Choose accessible brand colours.');
     setBusy(true);
     const uploadedPaths: string[] = [];
     try {
@@ -244,7 +250,14 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
         headerUrl = uploaded.url;
         uploadedPaths.push(uploaded.path);
       }
-      await saveBusinessProfile(workspace, parsed.data, published, hours, { logoUrl, headerUrl });
+      await saveBusinessProfile(
+        workspace,
+        parsed.data,
+        published,
+        hours,
+        { logoUrl, headerUrl },
+        parsedPalette.data,
+      );
       onSaved();
     } catch (error) {
       if (uploadedPaths.length) await supabase.storage.from('business-media').remove(uploadedPaths);
@@ -264,6 +277,14 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
     hoursLoading,
     logo,
     header,
+    brandPalette,
+    updateBrandPalette: (key: keyof BusinessBrandPalette, value: string) =>
+      setBrandPalette((current) => ({ ...current, [key]: value })),
+    resetBrandPalette: () => setBrandPalette(DEFAULT_BUSINESS_PALETTE),
+    brandPaletteError: (() => {
+      const result = businessBrandPaletteSchema.safeParse(brandPalette);
+      return result.success ? null : (result.error.issues[0]?.message ?? 'Choose accessible brand colours.');
+    })(),
     pickMedia,
     busy,
     save,

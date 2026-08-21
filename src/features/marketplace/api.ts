@@ -1,6 +1,7 @@
 import { isMenuCategoryIconKey } from '../../lib/menuCategoryIcons';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../types/database';
+import { normalizeBusinessPalette } from '../branding/theme';
 
 import {
   MarketplaceCursor,
@@ -99,6 +100,11 @@ function mapSummary(row: CatalogRow | DetailRow): PublicBusinessSummary {
     headerUrl: row.header_url ? String(row.header_url) : null,
     rating: row.rating === null || row.rating === undefined ? null : Number(row.rating),
     reviewCount: Number(row.review_count ?? 0),
+    brandPalette: normalizeBusinessPalette({
+      primary: row.brand_primary_color,
+      accent: row.brand_accent_color,
+      background: row.brand_background_color,
+    }),
   };
 }
 

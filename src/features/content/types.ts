@@ -1,4 +1,5 @@
 import { ProfileImageMime } from '../../lib/profileValidation';
+import { BusinessBrandPalette } from '../branding/types';
 
 export type ContentKind = 'news' | 'event';
 export type PublicationState = 'draft' | 'scheduled' | 'published' | 'archived';
@@ -41,6 +42,7 @@ export type ContentItem = ContentEditorInput & {
   businessId: string;
   businessName: string;
   businessLogoUrl: string | null;
+  brandPalette: BusinessBrandPalette;
   coverPath: string | null;
   coverUrl: string | null;
   authorDisplayName: string;

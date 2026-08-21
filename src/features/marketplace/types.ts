@@ -1,4 +1,5 @@
 import { MenuCategoryIconKey } from '../../lib/menuCategoryIcons';
+import { BusinessBrandPalette } from '../branding/types';
 
 export type MarketplaceCursor = { name: string; id: string };
 
@@ -12,6 +13,7 @@ export type PublicBusinessSummary = {
   headerUrl: string | null;
   rating: number | null;
   reviewCount: number;
+  brandPalette: BusinessBrandPalette;
 };
 
 export type PublicBusinessHour = {

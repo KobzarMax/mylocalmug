@@ -1,5 +1,7 @@
 import { supabase } from '../../lib/supabase';
 import { Database, Json } from '../../types/database';
+import { DEFAULT_BUSINESS_PALETTE, normalizeBusinessPalette } from '../branding/theme';
+import { BusinessBrandPalette } from '../branding/types';
 
 import {
   ContentCursor,
@@ -25,7 +27,9 @@ export async function getBusinessContent(businessId: string, businessName: strin
   const rows = (postsResult.data ?? []) as ContentRow[];
   const reminders = await getReminders(rows.map((row) => row.id));
   const covers = await getSignedCoverUrls(rows.map((row) => row.cover_path));
-  return rows.map((row) => mapContent(row, reminders.get(row.id) ?? [], covers, businessName, null));
+  return rows.map((row) =>
+    mapContent(row, reminders.get(row.id) ?? [], covers, businessName, null, DEFAULT_BUSINESS_PALETTE),
+  );
 }
 
 export async function saveContentDraft(
@@ -113,6 +117,11 @@ export async function getPublicContentPage(options: {
       covers,
       row.business_name,
       row.business_logo_url,
+      normalizeBusinessPalette({
+        primary: row.business_brand_primary_color,
+        accent: row.business_brand_accent_color,
+        background: row.business_brand_background_color,
+      }),
     );
     const { bodyDocument: _document, bodyText, ...summary } = item;
     return { ...summary, readingMinutes: readingMinutes(bodyText) };
@@ -149,7 +158,18 @@ export async function getPublicContentDetail(postId: string): Promise<ContentDet
   const row = (result.data?.[0] ?? null) as PublicContentRow | null;
   if (!row) return null;
   const covers = await getSignedCoverUrls([row.cover_path]);
-  const item = mapContent(row, row.reminder_minutes ?? [], covers, row.business_name, row.business_logo_url);
+  const item = mapContent(
+    row,
+    row.reminder_minutes ?? [],
+    covers,
+    row.business_name,
+    row.business_logo_url,
+    normalizeBusinessPalette({
+      primary: row.business_brand_primary_color,
+      accent: row.business_brand_accent_color,
+      background: row.business_brand_background_color,
+    }),
+  );
   return { ...item, readingMinutes: readingMinutes(item.bodyText) };
 }
 
@@ -262,12 +282,14 @@ function mapContent(
   covers: Map<string, string | null>,
   businessName: string,
   businessLogoUrl: string | null,
+  brandPalette: BusinessBrandPalette,
 ): ContentItem {
   return {
     id: row.id,
     businessId: String(row.business_id),
     businessName,
     businessLogoUrl,
+    brandPalette,
     kind: row.kind as ContentKind,
     title: String(row.title),
     excerpt: String(row.excerpt),

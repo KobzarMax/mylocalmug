@@ -1,5 +1,6 @@
 import { BusinessApplicationInput } from '../../lib/businessValidation';
 import { ProfileImageMime } from '../../lib/profileValidation';
+import { BusinessBrandPalette } from '../branding/types';
 
 export type ApplicationStatus =
   'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn';
@@ -48,6 +49,7 @@ export type Business = {
   address: string;
   logoUrl: string | null;
   headerUrl: string | null;
+  brandPalette: BusinessBrandPalette;
   status: 'onboarding' | 'active' | 'suspended' | 'closed';
   isPublished: boolean;
 };

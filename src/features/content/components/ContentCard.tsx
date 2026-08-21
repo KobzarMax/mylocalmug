@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 
 import { CachedImage } from '../../../components/CachedImage';
-import { palette } from '../../../lib/design';
+import { resolveBusinessTheme } from '../../branding/theme';
 import { styles } from '../styles';
 import { ContentItem, ContentSummary, publicationStateOf } from '../types';
 
@@ -16,6 +16,7 @@ export function ContentCard({
   management?: boolean;
 }) {
   const state = publicationStateOf(item);
+  const theme = resolveBusinessTheme(management ? undefined : item.brandPalette);
   const eventMeta =
     item.kind === 'event' && item.eventStartsAt
       ? formatEventDate(item.eventStartsAt, item.eventAllDay, item.eventTimezone)
@@ -24,7 +25,11 @@ export function ContentCard({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
+      style={({ pressed }) => [
+        styles.card,
+        !management && { backgroundColor: theme.surface, borderColor: theme.border },
+        pressed && { opacity: 0.75 },
+      ]}
     >
       {(item.coverPath || item.coverUrl) && (
         <CachedImage
@@ -44,25 +49,34 @@ export function ContentCard({
               accessibilityLabel={`${item.businessName} logo`}
             />
           ) : (
-            <View style={[styles.logo, styles.logoEmpty]}>
-              <Ionicons name="cafe" size={15} color={palette.green} />
+            <View style={[styles.logo, styles.logoEmpty, { backgroundColor: theme.primarySoft }]}>
+              <Ionicons name="cafe" size={15} color={theme.primary} />
             </View>
           )}
-          <Text style={styles.businessName}>{item.businessName}</Text>
+          <Text style={[styles.businessName, { color: theme.text }]}>{item.businessName}</Text>
           <View
-            style={[styles.badge, (item.eventCancelledAt || state === 'archived') && styles.badgeWarning]}
+            style={[
+              styles.badge,
+              !item.eventCancelledAt && state !== 'archived' && { backgroundColor: theme.accentSoft },
+              (item.eventCancelledAt || state === 'archived') && styles.badgeWarning,
+            ]}
           >
-            <Text style={styles.badgeText}>
+            <Text
+              style={[
+                styles.badgeText,
+                !item.eventCancelledAt && state !== 'archived' && { color: theme.accent },
+              ]}
+            >
               {item.eventCancelledAt ? 'cancelled' : management ? state : item.kind}
             </Text>
           </View>
         </View>
-        {item.isPinned && <Text style={styles.overline}>Pinned {item.kind}</Text>}
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        <Text style={styles.excerpt} numberOfLines={3}>
+        {item.isPinned && <Text style={[styles.overline, { color: theme.primary }]}>Pinned {item.kind}</Text>}
+        <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+        <Text style={[styles.excerpt, { color: theme.mutedText }]} numberOfLines={3}>
           {item.excerpt}
         </Text>
-        <Text style={styles.meta}>
+        <Text style={[styles.meta, { color: theme.mutedText }]}>
           {eventMeta ??
             `${formatDate(item.publishedAt ?? item.updatedAt)} · ${'readingMinutes' in item ? item.readingMinutes : readingMinutes(item.bodyText)} min read`}{' '}
           · By {item.authorDisplayName}

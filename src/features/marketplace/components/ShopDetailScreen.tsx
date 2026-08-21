@@ -5,6 +5,8 @@ import { Alert, Linking, Pressable, SafeAreaView, ScrollView, Text, View } from 
 import { CachedImage } from '../../../components/CachedImage';
 import { OfflineNotice } from '../../../components/OfflineNotice';
 import { palette } from '../../../lib/design';
+import { resolveBusinessTheme } from '../../branding/theme';
+import { ResolvedBusinessTheme } from '../../branding/types';
 import { ContentCard } from '../../content/components/ContentCard';
 import { useBusinessFollow, usePublicContentFeed } from '../../content/hooks';
 import { usePublicBusiness } from '../hooks';
@@ -59,10 +61,11 @@ export function ShopDetailScreen({
       </SafeAreaView>
     );
   const business = detail.data;
+  const theme = resolveBusinessTheme(business.brandPalette);
   const image = business.headerUrl ?? business.logoUrl;
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ backgroundColor: theme.background }}>
         <View>
           <CachedImage
             uri={image}
@@ -82,33 +85,37 @@ export function ShopDetailScreen({
             <View />
           </View>
         </View>
-        <View style={styles.detailBody}>
+        <View style={[styles.detailBody, { backgroundColor: theme.background }]}>
           <OfflineNotice
             isOnline={detail.isOnline}
             updatedAt={Math.min(detail.dataUpdatedAt || Date.now(), menu.dataUpdatedAt || Date.now())}
             stale={Boolean(detail.error || menu.error)}
           />
-          <Text style={styles.detailTitle}>{business.name}</Text>
-          <Text style={styles.category}>{business.category}</Text>
+          <Text style={[styles.detailTitle, { color: theme.text }]}>{business.name}</Text>
+          <Text style={[styles.category, { color: theme.primary }]}>{business.category}</Text>
           {business.rating !== null && (
             <View style={styles.rating}>
               <Ionicons name="star" size={14} color={palette.star} />
-              <Text style={styles.ratingText}>
+              <Text style={[styles.ratingText, { color: theme.text }]}>
                 {business.rating.toFixed(1)} · {business.reviewCount} reviews
               </Text>
             </View>
           )}
-          <Text style={styles.description}>
+          <Text style={[styles.description, { color: theme.mutedText }]}>
             {business.description || 'This coffee shop has not added a description yet.'}
           </Text>
-          <Text style={styles.meta}>{business.address}</Text>
+          <Text style={[styles.meta, { color: theme.mutedText }]}>{business.address}</Text>
           <Pressable
             accessibilityRole="button"
             disabled={follow.busy || !follow.isOnline}
             onPress={updateFollow}
-            style={[styles.followButton, !follow.isOnline && styles.disabled]}
+            style={[
+              styles.followButton,
+              { backgroundColor: theme.primary },
+              !follow.isOnline && styles.disabled,
+            ]}
           >
-            <Text style={styles.followText}>
+            <Text style={[styles.followText, { color: theme.primaryForeground }]}>
               {follow.isOnline
                 ? follow.following
                   ? 'Unfollow this coffee shop'
@@ -122,6 +129,7 @@ export function ShopDetailScreen({
                 icon="call-outline"
                 label="Call"
                 onPress={() => void Linking.openURL(`tel:${business.phone}`)}
+                theme={theme}
               />
             ) : null}
             {business.websiteUrl ? (
@@ -129,16 +137,17 @@ export function ShopDetailScreen({
                 icon="globe-outline"
                 label="Website"
                 onPress={() => void Linking.openURL(business.websiteUrl)}
+                theme={theme}
               />
             ) : null}
           </View>
-          <BusinessHours hours={business.hours} />
+          <BusinessHours hours={business.hours} theme={theme} />
           {menu.data ? (
-            <PublicMenuSection menu={menu.data} />
+            <PublicMenuSection menu={menu.data} theme={theme} />
           ) : (
             <View style={styles.section}>
-              <Text style={styles.sectionHeading}>Menu</Text>
-              <Text style={styles.stateText}>
+              <Text style={[styles.sectionHeading, { color: theme.text }]}>Menu</Text>
+              <Text style={[styles.stateText, { color: theme.mutedText }]}>
                 {menu.isOnline
                   ? (menu.error ?? 'Loading menu…')
                   : 'This menu was not saved before going offline.'}
@@ -146,12 +155,12 @@ export function ShopDetailScreen({
             </View>
           )}
           <View style={styles.section}>
-            <Text style={styles.sectionHeading}>News & events</Text>
+            <Text style={[styles.sectionHeading, { color: theme.text }]}>News & events</Text>
             {stories.items.slice(0, 3).map((item) => (
               <ContentCard key={item.id} item={item} onPress={() => onOpenContent(item.id)} />
             ))}
             {!stories.loading && !stories.items.length && (
-              <Text style={styles.stateText}>
+              <Text style={[styles.stateText, { color: theme.mutedText }]}>
                 {stories.isOnline
                   ? 'No published stories from this shop yet.'
                   : 'Stories from this shop were not saved before going offline.'}
@@ -168,15 +177,21 @@ function Action({
   icon,
   label,
   onPress,
+  theme,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
   onPress: () => void;
+  theme: ResolvedBusinessTheme;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.action}>
-      <Ionicons name={icon} size={19} color={palette.green} />
-      <Text style={styles.actionText}>{label}</Text>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.action, { backgroundColor: theme.surface, borderColor: theme.border }]}
+    >
+      <Ionicons name={icon} size={19} color={theme.primary} />
+      <Text style={[styles.actionText, { color: theme.primary }]}>{label}</Text>
     </Pressable>
   );
 }

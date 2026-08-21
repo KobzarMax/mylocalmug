@@ -1,5 +1,6 @@
 import { BusinessApplicationInput } from '../../lib/businessValidation';
 import { supabase } from '../../lib/supabase';
+import { BusinessBrandPalette } from '../branding/types';
 
 import {
   Application,
@@ -79,7 +80,7 @@ export async function getBusinessWorkspace(userId: string): Promise<Workspace | 
     supabase
       .from('businesses')
       .select(
-        'id, name, description, category, contact_email, contact_phone, website_url, address, logo_url, header_url, status, is_published',
+        'id, name, description, category, contact_email, contact_phone, website_url, address, logo_url, header_url, brand_primary_color, brand_accent_color, brand_background_color, status, is_published',
       )
       .eq('id', businessId)
       .single(),
@@ -104,6 +105,11 @@ export async function getBusinessWorkspace(userId: string): Promise<Workspace | 
     address: row.address,
     logoUrl: row.logo_url,
     headerUrl: row.header_url,
+    brandPalette: {
+      primary: row.brand_primary_color,
+      accent: row.brand_accent_color,
+      background: row.brand_background_color,
+    },
     status: row.status,
     isPublished: row.is_published,
   };
@@ -214,6 +220,7 @@ export async function saveBusinessProfile(
   published: boolean,
   hours: DayHours[],
   media: { logoUrl: string | null; headerUrl: string | null },
+  brandPalette: BusinessBrandPalette,
 ) {
   const businessResult = await supabase
     .from('businesses')
@@ -227,6 +234,9 @@ export async function saveBusinessProfile(
       address: input.address,
       logo_url: media.logoUrl,
       header_url: media.headerUrl,
+      brand_primary_color: brandPalette.primary,
+      brand_accent_color: brandPalette.accent,
+      brand_background_color: brandPalette.background,
       is_published: published,
       status: published ? 'active' : workspace.business.status,
       updated_at: new Date().toISOString(),

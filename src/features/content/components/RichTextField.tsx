@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { Text, View } from 'react-native';
 
 import { palette } from '../../../lib/design';
+import { ResolvedBusinessTheme } from '../../branding/types';
 import { styles } from '../styles';
 import { RichTextDocument } from '../types';
 
@@ -43,12 +44,31 @@ export function RichTextField({
   );
 }
 
-export function RichTextReader({ document }: { document: RichTextDocument }) {
+export function RichTextReader({
+  document,
+  theme,
+}: {
+  document: RichTextDocument;
+  theme?: ResolvedBusinessTheme;
+}) {
   const editor = useEditorBridge({
     initialContent: document,
     editable: false,
     dynamicHeight: true,
-    theme: { webview: { backgroundColor: palette.cream } },
+    theme: { webview: { backgroundColor: theme?.background ?? palette.cream } },
   });
-  return <RichText editor={editor} scrollEnabled={false} style={styles.reader} />;
+  useEffect(() => {
+    if (!theme) return;
+    editor.injectCSS(
+      `html, body { background: ${theme.background}; color: ${theme.text}; } body, p, li, h1, h2, h3, h4, h5, h6 { color: ${theme.text}; } a { color: ${theme.primary}; } blockquote { border-left-color: ${theme.accent}; color: ${theme.mutedText}; }`,
+      'business-brand-reader',
+    );
+  }, [editor, theme]);
+  return (
+    <RichText
+      editor={editor}
+      scrollEnabled={false}
+      style={[styles.reader, theme && { backgroundColor: theme.background }]}
+    />
+  );
 }

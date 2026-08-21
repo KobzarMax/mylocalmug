@@ -489,6 +489,9 @@ export type Database = {
       businesses: {
         Row: {
           address: string;
+          brand_accent_color: string;
+          brand_background_color: string;
+          brand_primary_color: string;
           category: string;
           contact_email: string;
           contact_phone: string;
@@ -510,6 +513,9 @@ export type Database = {
         };
         Insert: {
           address?: string;
+          brand_accent_color?: string;
+          brand_background_color?: string;
+          brand_primary_color?: string;
           category?: string;
           contact_email?: string;
           contact_phone?: string;
@@ -531,6 +537,9 @@ export type Database = {
         };
         Update: {
           address?: string;
+          brand_accent_color?: string;
+          brand_background_color?: string;
+          brand_primary_color?: string;
           category?: string;
           contact_email?: string;
           contact_phone?: string;
@@ -3031,6 +3040,9 @@ export type Database = {
         };
         Returns: {
           address: string;
+          brand_accent_color: string;
+          brand_background_color: string;
+          brand_primary_color: string;
           category: string;
           description: string;
           header_url: string;
@@ -3045,6 +3057,9 @@ export type Database = {
         Args: { target_business_id: string };
         Returns: {
           address: string;
+          brand_accent_color: string;
+          brand_background_color: string;
+          brand_primary_color: string;
           category: string;
           description: string;
           header_url: string;
@@ -3097,6 +3112,9 @@ export type Database = {
           author_display_name: string;
           body_document: Json;
           body_text: string;
+          business_brand_accent_color: string;
+          business_brand_background_color: string;
+          business_brand_primary_color: string;
           business_id: string;
           business_logo_url: string;
           business_name: string;

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
 
 import { CachedImage } from '../../../components/CachedImage';
+import { MenuCategoryIcon } from '../../../components/MenuCategoryIcon';
 import { palette } from '../../../lib/design';
 import { styles } from '../styles';
 import { PublicMenu } from '../types';
@@ -24,6 +25,7 @@ export function PublicMenuSection({ menu }: { menu: PublicMenu }) {
                 cacheKey={item.photoUrl ?? `menu-${item.id}`}
                 style={styles.menuImage}
                 accessibilityLabel={item.name}
+                fallback={<MenuCategoryIcon iconKey={category.iconKey} />}
               />
               <View style={styles.menuCopy}>
                 <Text style={styles.menuName}>{item.name}</Text>

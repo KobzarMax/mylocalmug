@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { MenuCategoryIcon } from '../../../components/MenuCategoryIcon';
 import { palette } from '../../../lib/design';
 import { categoryStyles as s } from '../categoryStyles';
 import { MenuCategory } from '../types';
@@ -22,6 +23,9 @@ export function CategoryManagerRow(props: Props) {
   return (
     <View style={s.row}>
       <View style={s.rowHeader}>
+        <View style={s.rowIcon} accessibilityLabel={`${props.category.name} category icon`}>
+          <MenuCategoryIcon iconKey={props.category.iconKey} size={24} />
+        </View>
         <View style={s.rowCopy}>
           <Text style={s.rowName}>{props.category.name}</Text>
           <Text style={s.rowCount}>

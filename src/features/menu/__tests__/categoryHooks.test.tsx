@@ -11,7 +11,9 @@ jest.mock('../api', () => ({
   checkMenuCategoryName: (...args: unknown[]) => mockCheckName(...args),
   deleteMenuCategory: jest.fn(),
   getBusinessMenu: jest.fn().mockResolvedValue({
-    categories: [{ id: 'coffee-id', businessId: 'business-id', name: 'Coffee', sortOrder: 0 }],
+    categories: [
+      { id: 'coffee-id', businessId: 'business-id', name: 'Coffee', iconKey: 'coffee', sortOrder: 0 },
+    ],
     items: [],
   }),
   reorderMenuCategories: jest.fn(),
@@ -43,6 +45,9 @@ describe('useCategoryManager', () => {
     await act(async () => new Promise((resolve) => setTimeout(resolve, 300)));
     await waitFor(() => expect(result.current.similarMatches).toHaveLength(1));
     await act(async () => result.current.confirmSimilar());
+    expect(result.current.similarConfirmed).toBe(true);
+
+    await act(async () => result.current.setIconKey('sandwich'));
     expect(result.current.similarConfirmed).toBe(true);
 
     await act(async () => result.current.setName('Coffees and tea'));

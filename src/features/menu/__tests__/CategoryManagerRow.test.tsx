@@ -6,6 +6,7 @@ const category = {
   id: 'category-id',
   businessId: 'business-id',
   name: 'Coffee',
+  iconKey: 'coffee' as const,
   sortOrder: 0,
 };
 

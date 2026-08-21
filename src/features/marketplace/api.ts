@@ -1,3 +1,4 @@
+import { isMenuCategoryIconKey } from '../../lib/menuCategoryIcons';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../types/database';
 
@@ -58,6 +59,7 @@ export async function getPublicBusinessMenu(businessId: string): Promise<PublicM
       id: categoryId,
       name: String(row.category_name),
       sortOrder: Number(row.category_sort_order),
+      iconKey: isMenuCategoryIconKey(row.category_icon_key) ? row.category_icon_key : 'other',
       items: [],
     };
     if (row.item_id)

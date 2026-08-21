@@ -1,3 +1,5 @@
+import { MenuCategoryIconKey } from '../../lib/menuCategoryIcons';
+
 export type MarketplaceCursor = { name: string; id: string };
 
 export type PublicBusinessSummary = {
@@ -47,6 +49,7 @@ export type PublicMenuCategory = {
   id: string;
   name: string;
   sortOrder: number;
+  iconKey: MenuCategoryIconKey;
   items: PublicMenuItem[];
 };
 

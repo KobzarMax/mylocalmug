@@ -2,13 +2,17 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { MenuOverview } from '../components/MenuOverview';
 
+jest.mock('../../../components/CachedImage', () => ({ CachedImage: () => null }));
+
 describe('MenuOverview category navigation', () => {
   it('uses one category-management action and keeps category controls out of the item list', async () => {
     const manage = jest.fn();
     await render(
       <MenuOverview
         busy={false}
-        categories={[{ id: 'coffee-id', businessId: 'business-id', name: 'Coffee', sortOrder: 0 }]}
+        categories={[
+          { id: 'coffee-id', businessId: 'business-id', name: 'Coffee', iconKey: 'coffee', sortOrder: 0 },
+        ]}
         error={null}
         items={[]}
         loading={false}

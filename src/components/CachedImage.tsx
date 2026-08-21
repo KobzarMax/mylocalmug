@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, ImageStyle } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { StyleProp, StyleSheet, View } from 'react-native';
 
 import { palette } from '../lib/design';
@@ -11,11 +11,13 @@ export function CachedImage({
   cacheKey,
   style,
   accessibilityLabel,
+  fallback,
 }: {
   uri: string | null;
   cacheKey: string;
   style: StyleProp<ImageStyle>;
   accessibilityLabel: string;
+  fallback?: ReactNode;
 }) {
   const { isOnline } = useNetworkStatus();
   const [failed, setFailed] = useState(false);
@@ -25,7 +27,7 @@ export function CachedImage({
   if (!uri || failed)
     return (
       <View accessibilityLabel={`${accessibilityLabel} unavailable`} style={[style, styles.placeholder]}>
-        <Ionicons name="cafe-outline" size={24} color={palette.green} />
+        {fallback ?? <Ionicons name="cafe-outline" size={24} color={palette.green} />}
       </View>
     );
   return (

@@ -1,4 +1,5 @@
 import { AppError } from '../../lib/errors';
+import { isMenuCategoryIconKey } from '../../lib/menuCategoryIcons';
 import { supabase } from '../../lib/supabase';
 
 import { CategoryNameCheck, CategoryNameMatch, MenuCategory, MenuData, MenuItem, MenuPhoto } from './types';
@@ -10,7 +11,7 @@ export async function getBusinessMenu(businessId: string): Promise<MenuData> {
   const [categoriesResult, itemsResult] = await Promise.all([
     supabase
       .from('menu_categories')
-      .select('id, business_id, name, sort_order')
+      .select('id, business_id, name, icon_key, sort_order')
       .eq('business_id', businessId)
       .order('sort_order')
       .order('name'),
@@ -38,6 +39,7 @@ export async function saveMenuCategory(
     target_business_id: businessId,
     target_category_id: categoryId,
     proposed_name: input.name,
+    proposed_icon_key: input.iconKey,
     allow_similar: allowSimilar,
   });
   if (result.error) throwCategoryError(result.error);
@@ -153,6 +155,7 @@ type MenuCategoryRow = {
   id: string;
   business_id: string;
   name: string;
+  icon_key: string;
   sort_order: number;
 };
 
@@ -173,6 +176,7 @@ function mapCategory(row: MenuCategoryRow): MenuCategory {
     id: row.id,
     businessId: row.business_id,
     name: row.name,
+    iconKey: isMenuCategoryIconKey(row.icon_key) ? row.icon_key : 'other',
     sortOrder: row.sort_order,
   };
 }

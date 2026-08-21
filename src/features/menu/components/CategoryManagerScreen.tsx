@@ -59,11 +59,13 @@ export function CategoryManagerScreen({
             editing={manager.editor !== 'new'}
             error={manager.editorError}
             exactMatch={manager.exactMatch}
+            iconKey={manager.iconKey}
             name={manager.name}
             similarConfirmed={manager.similarConfirmed}
             similarMatches={manager.similarMatches}
             onCancel={manager.closeEditor}
             onConfirmSimilar={manager.confirmSimilar}
+            onIconChange={manager.setIconKey}
             onNameChange={manager.setName}
             onRetryCheck={manager.retryNameCheck}
             onSave={() => void manager.save()}

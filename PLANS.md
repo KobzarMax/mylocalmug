@@ -184,6 +184,8 @@ Implementation status: **CATEGORY MANAGEMENT CODE DONE; MIGRATIONS AND LIVE ACCE
 - A dedicated permission-routed category manager centralizes create, rename, reorder, and delete actions while keeping the main menu focused on items.
 - Exact normalized duplicates are database-blocked; PostgreSQL trigram matches warn about similar names and require an explicit override.
 - Drizzle `0008` safely consolidates existing exact duplicates, and Supabase `012` moves category writes behind trusted business-scoped RPCs.
+- Category-owned food and drink icons provide an explicit, editable fallback for missing or failed menu-item photos in business and customer menus.
+- Drizzle `0009` backfills constrained icon keys, while Supabase `014` persists icons through trusted category saves and exposes them through the safe event-aware public menu RPC.
 - Transactional anonymous/manager/viewer menu RLS verification script.
 
 Deployment status: Supabase migration `004_menu_management.sql` was applied. The first RLS-test run exposed an invalid test fixture, which was corrected to create transactional `auth.users` records before their linked profiles. A successful rerun of `004_menu_management_rls.sql` and live role/device acceptance are not yet recorded. The customer marketplace still renders mock menu data and will be connected to published menu queries after management verification.
@@ -336,6 +338,11 @@ Ready to apply:
 - Drizzle migration `0008_normalized_menu_categories.sql`.
 - Supabase migrations `012_category_management.sql` and `013_lock_category_management_rpc_grants.sql`.
 - Transactional verification script `supabase/tests/012_category_management.sql`.
+- Drizzle migration `0009_ambitious_warlock.sql`.
+- Supabase migration `014_category_menu_icons.sql`.
+- Supabase migration `015_restore_default_category_trigger.sql`.
+- Supabase migration `016_rebuild_default_category_icon_trigger.sql`.
+- Transactional verification script `supabase/tests/014_category_menu_icons.sql`.
 
 Payment-provider deployment is intentionally postponed. The payment Edge Functions, provider credentials, Cron worker, sandbox acceptance, and physical-terminal acceptance are not release-ready.
 

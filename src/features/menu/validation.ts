@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MENU_CATEGORY_ICON_KEYS } from '../../lib/menuCategoryIcons';
+
 const plainText = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$/u;
 
 export const normalizeMenuCategoryName = (value: string) => value.trim().replace(/\s+/gu, ' ');
@@ -15,6 +17,7 @@ export const menuCategoryInputSchema = z.object({
         .max(60, 'Category name must be 60 characters or fewer.')
         .regex(plainText, 'Category name contains unsupported characters.'),
     ),
+  iconKey: z.enum(MENU_CATEGORY_ICON_KEYS),
 });
 
 const menuPriceSchema = z

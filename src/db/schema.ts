@@ -509,12 +509,17 @@ export const menuCategories = pgTable(
       .notNull()
       .references(() => businesses.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    iconKey: text('icon_key').default('other').notNull(),
     sortOrder: integer('sort_order').default(0).notNull(),
   },
   (table) => ({
     normalizedNameUnique: uniqueIndex('menu_categories_business_normalized_name_unique').on(
       table.businessId,
       sql`lower(regexp_replace(btrim(${table.name}), '[[:space:]]+', ' ', 'g'))`,
+    ),
+    iconKeyCheck: check(
+      'menu_categories_icon_key_check',
+      sql`${table.iconKey} in ('coffee','tea','cold_drink','alcoholic_drink','breakfast','sandwich','bakery','dessert','meal','pizza','healthy','ice_cream','other')`,
     ),
   }),
 );

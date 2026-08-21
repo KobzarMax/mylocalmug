@@ -1,9 +1,11 @@
+import { MenuCategoryIconKey } from '../../lib/menuCategoryIcons';
 import { ProfileImageMime } from '../../lib/profileValidation';
 
 export type MenuCategory = {
   id: string;
   businessId: string;
   name: string;
+  iconKey: MenuCategoryIconKey;
   sortOrder: number;
 };
 

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { CachedImage } from '../../../components/CachedImage';
+import { MenuCategoryIcon } from '../../../components/MenuCategoryIcon';
 import { palette } from '../../../lib/design';
 import { styles } from '../styles';
 import { MenuCategory, MenuItem } from '../types';
@@ -31,6 +33,7 @@ export function MenuCategorySection(props: CategorySectionProps) {
           <MenuItemCard
             key={item.id}
             item={item}
+            iconKey={props.category?.iconKey ?? 'other'}
             disabled={props.busy}
             onPress={() => props.onItem(item)}
             onDelete={() => props.onDeleteItem(item)}
@@ -43,11 +46,13 @@ export function MenuCategorySection(props: CategorySectionProps) {
 
 function MenuItemCard({
   item,
+  iconKey,
   disabled,
   onPress,
   onDelete,
 }: {
   item: MenuItem;
+  iconKey: MenuCategory['iconKey'];
   disabled: boolean;
   onPress: () => void;
   onDelete: () => void;
@@ -60,13 +65,13 @@ function MenuItemCard({
       onPress={onPress}
       style={[styles.itemCard, disabled && styles.disabled]}
     >
-      {item.photoUrl ? (
-        <Image source={{ uri: item.photoUrl }} style={styles.itemPhoto} />
-      ) : (
-        <View style={[styles.itemPhoto, styles.itemPhotoEmpty]}>
-          <Ionicons name="cafe-outline" size={25} color={palette.green} />
-        </View>
-      )}
+      <CachedImage
+        uri={item.photoUrl}
+        cacheKey={item.photoUrl ?? `business-menu-${item.id}`}
+        style={styles.itemPhoto}
+        accessibilityLabel={item.name}
+        fallback={<MenuCategoryIcon iconKey={iconKey} />}
+      />
       <View style={styles.itemBody}>
         <View style={styles.itemTop}>
           <Text numberOfLines={1} style={styles.itemName}>

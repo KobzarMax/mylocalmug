@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
 import { safeErrorMessage } from '../../lib/errors';
+import { MenuCategoryIconKey } from '../../lib/menuCategoryIcons';
 
 import {
   addDefaultMenuCategories,
@@ -27,12 +28,13 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
   });
   const [editor, setEditor] = useState<CategoryEditor>(initialCreate ? 'new' : null);
   const [name, setNameValue] = useState('');
+  const [iconKey, setIconKey] = useState<MenuCategoryIconKey>('other');
   const [debouncedName, setDebouncedName] = useState('');
   const [confirmedSimilarName, setConfirmedSimilarName] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const normalizedName = normalizeMenuCategoryName(name);
-  const parsedName = menuCategoryInputSchema.safeParse({ name });
+  const parsedName = menuCategoryInputSchema.safeParse({ name, iconKey });
   const editingCategory = editor && editor !== 'new' ? editor : null;
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     onSuccess: async (saved) => {
       setEditor(null);
       setNameValue('');
+      setIconKey('other');
       setConfirmedSimilarName(null);
       setSuccessMessage(`${saved.name} saved.`);
       await invalidate();
@@ -113,6 +116,7 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     defaultsMutation.reset();
     setEditor(next);
     setNameValue(next === 'new' ? '' : next.name);
+    setIconKey(next === 'new' ? 'other' : next.iconKey);
     setDebouncedName(next === 'new' ? '' : normalizeMenuCategoryName(next.name));
     setConfirmedSimilarName(null);
     setValidationError(null);
@@ -122,6 +126,7 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     if (busy) return;
     setEditor(null);
     setNameValue('');
+    setIconKey('other');
     setValidationError(null);
     setConfirmedSimilarName(null);
   };
@@ -164,6 +169,7 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     itemCounts,
     editor,
     name,
+    iconKey,
     exactMatch,
     similarMatches,
     similarConfirmed,
@@ -188,6 +194,7 @@ export function useCategoryManager(businessId: string, initialCreate = false) {
     openEditor,
     closeEditor,
     setName,
+    setIconKey,
     confirmSimilar: () => setConfirmedSimilarName(normalizedName),
     retryNameCheck: () => void nameCheck.refetch(),
     save,

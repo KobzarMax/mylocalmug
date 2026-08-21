@@ -1572,18 +1572,21 @@ export type Database = {
       menu_categories: {
         Row: {
           business_id: string;
+          icon_key: string;
           id: string;
           name: string;
           sort_order: number;
         };
         Insert: {
           business_id: string;
+          icon_key?: string;
           id?: string;
           name: string;
           sort_order?: number;
         };
         Update: {
           business_id?: string;
+          icon_key?: string;
           id?: string;
           name?: string;
           sort_order?: number;
@@ -3061,6 +3064,7 @@ export type Database = {
         Args: { target_business_id: string };
         Returns: {
           category_id: string;
+          category_icon_key: string;
           category_name: string;
           category_sort_order: number;
           event_available_from: string;
@@ -3333,6 +3337,7 @@ export type Database = {
         Args: {
           allow_similar?: boolean;
           proposed_name: string;
+          proposed_icon_key: string;
           target_business_id: string;
           target_category_id: string | null;
         };

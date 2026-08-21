@@ -2,12 +2,16 @@ import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 
 import { AppButton } from '../../../components/ui/AppButton';
 import { palette } from '../../../lib/design';
+import { MenuCategoryIconKey } from '../../../lib/menuCategoryIcons';
 import { categoryStyles as s } from '../categoryStyles';
 import { CategoryNameMatch } from '../types';
+
+import { CategoryIconPicker } from './CategoryIconPicker';
 
 type Props = {
   editing: boolean;
   name: string;
+  iconKey: MenuCategoryIconKey;
   exactMatch: CategoryNameMatch | null;
   similarMatches: CategoryNameMatch[];
   similarConfirmed: boolean;
@@ -16,6 +20,7 @@ type Props = {
   busy: boolean;
   error: string | null;
   onNameChange: (value: string) => void;
+  onIconChange: (value: MenuCategoryIconKey) => void;
   onConfirmSimilar: () => void;
   onRetryCheck: () => void;
   onSave: () => void;
@@ -49,6 +54,9 @@ export function CategoryEditorCard(props: Props) {
         style={s.input}
         value={props.name}
       />
+      <Text style={s.label}>Default item icon</Text>
+      <Text style={s.iconHint}>Used when an item has no photo or its image cannot load.</Text>
+      <CategoryIconPicker value={props.iconKey} disabled={props.busy} onChange={props.onIconChange} />
       {props.checking ? (
         <View accessibilityLiveRegion="polite" style={s.checkingRow}>
           <ActivityIndicator color={palette.green} size="small" />

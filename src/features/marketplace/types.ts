@@ -1,5 +1,6 @@
 import { MenuCategoryIconKey } from '../../lib/menuCategoryIcons';
 import { BusinessBrandPalette } from '../branding/types';
+import { SocialLinks } from '../social/types';
 
 export type MarketplaceCursor = { name: string; id: string };
 
@@ -26,7 +27,7 @@ export type PublicBusinessHour = {
 export type PublicBusinessDetail = PublicBusinessSummary & {
   phone: string;
   websiteUrl: string;
-  socialLinks: Record<string, string>;
+  socialLinks: SocialLinks;
   timezone: string;
   hours: PublicBusinessHour[];
 };

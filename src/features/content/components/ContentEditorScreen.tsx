@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 
 import { palette } from '../../../lib/design';
+import { SocialComposer } from '../../social/components/SocialComposer';
+import { SocialDeliveryStatus } from '../../social/components/SocialDeliveryStatus';
 import { useContentEditor } from '../editorHooks';
 import { styles } from '../styles';
 import { ContentItem, RichTextDocument } from '../types';
@@ -132,6 +134,18 @@ export function ContentEditorScreen({
           {editor.form.kind === 'event' && (
             <EventFields form={editor.form} disabled={editor.busy} update={editor.update} />
           )}
+          <SocialComposer
+            captions={editor.socialCaptions}
+            connections={editor.socialConnections}
+            defaultCaption={editor.defaultSocialCaption}
+            disabled={editor.busy}
+            hasJpegCover={editor.hasJpegCover}
+            onCaptionChange={editor.updateSocialCaption}
+            onToggle={editor.toggleSocialProvider}
+            publicUrlReady={editor.publicSocialUrlReady}
+            selected={editor.socialProviders}
+          />
+          <SocialDeliveryStatus postId={item?.id ?? null} />
           <PublicationActions
             busy={editor.busy}
             hasPublication={Boolean(item?.publishedAt)}

@@ -5,6 +5,7 @@ const allPermissions: Permission[] = [
   'business.profile.write',
   'menu.manage',
   'content.manage',
+  'social.connect',
   'rewards.manage',
   'team.read',
   'team.manage',

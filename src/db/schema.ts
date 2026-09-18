@@ -86,6 +86,24 @@ export const businessInvitationStatus = pgEnum('business_invitation_status', [
   'expired',
 ]);
 export const postKind = pgEnum('post_kind', ['news', 'event']);
+export const socialPlatform = pgEnum('social_platform', ['facebook', 'instagram']);
+export const socialConnectionStatus = pgEnum('social_connection_status', [
+  'connecting',
+  'ready',
+  'expired',
+  'revoked',
+  'disabled',
+]);
+export const socialPublicationType = pgEnum('social_publication_type', ['initial', 'update', 'cancellation']);
+export const socialPublicationStatus = pgEnum('social_publication_status', [
+  'queued',
+  'publishing',
+  'published',
+  'blocked',
+  'failed',
+  'needs_review',
+  'cancelled',
+]);
 export const eventNotificationJobType = pgEnum('event_notification_job_type', [
   'reminder',
   'updated',
@@ -910,6 +928,129 @@ export const postEventReminders = pgTable(
   }),
 );
 
+export const socialConnections = pgTable(
+  'social_connections',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    provider: socialPlatform('provider').notNull(),
+    externalAccountId: text('external_account_id').notNull(),
+    accountName: text('account_name').notNull(),
+    username: text('username'),
+    profileUrl: text('profile_url').notNull(),
+    grantedScopes: text('granted_scopes').array().default([]).notNull(),
+    status: socialConnectionStatus('status').default('connecting').notNull(),
+    tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+    lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
+    disconnectedAt: timestamp('disconnected_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    businessProviderIdx: uniqueIndex('social_connections_business_provider_unique').on(
+      table.businessId,
+      table.provider,
+    ),
+  }),
+);
+
+export const socialConnectionCredentials = pgTable('social_connection_credentials', {
+  connectionId: uuid('connection_id')
+    .primaryKey()
+    .references(() => socialConnections.id, { onDelete: 'cascade' }),
+  tokenCiphertext: text('token_ciphertext').notNull(),
+  tokenNonce: text('token_nonce').notNull(),
+  keyVersion: integer('key_version').default(1).notNull(),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const socialOauthStates = pgTable(
+  'social_oauth_states',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    stateHash: text('state_hash').notNull(),
+    actorId: uuid('actor_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    provider: socialPlatform('provider').notNull(),
+    encryptedVerifier: text('encrypted_verifier'),
+    candidateCiphertext: text('candidate_ciphertext'),
+    candidateNonce: text('candidate_nonce'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({ stateHashIdx: uniqueIndex('social_oauth_states_hash_unique').on(table.stateHash) }),
+);
+
+export const socialPublications = pgTable(
+  'social_publications',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => posts.id, { onDelete: 'cascade' }),
+    connectionId: uuid('connection_id')
+      .notNull()
+      .references(() => socialConnections.id, { onDelete: 'restrict' }),
+    provider: socialPlatform('provider').notNull(),
+    publicationType: socialPublicationType('publication_type').default('initial').notNull(),
+    caption: text('caption').notNull(),
+    mediaPath: text('media_path'),
+    contentUrl: text('content_url').notNull(),
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }).notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+    status: socialPublicationStatus('status').default('queued').notNull(),
+    providerContainerId: text('provider_container_id'),
+    providerPublicationId: text('provider_publication_id'),
+    providerUrl: text('provider_url'),
+    attempts: integer('attempts').default(0).notNull(),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    lastError: text('last_error'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+  },
+  (table) => ({
+    idempotencyIdx: uniqueIndex('social_publications_idempotency_unique').on(table.idempotencyKey),
+    dueIdx: index('social_publications_due_idx').on(table.status, table.dueAt),
+    captionCheck: check(
+      'social_publications_caption_check',
+      sql`char_length(btrim(${table.caption})) between 1 and 2000`,
+    ),
+    instagramMediaCheck: check(
+      'social_publications_instagram_media_check',
+      sql`${table.provider} <> 'instagram' or ${table.mediaPath} is not null`,
+    ),
+  }),
+);
+
+export const socialPublicationAttempts = pgTable('social_publication_attempts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicationId: uuid('publication_id')
+    .notNull()
+    .references(() => socialPublications.id, { onDelete: 'cascade' }),
+  attemptNumber: integer('attempt_number').notNull(),
+  outcome: text('outcome').notNull(),
+  httpStatus: integer('http_status'),
+  providerCode: text('provider_code'),
+  sanitizedError: text('sanitized_error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const pushDevices = pgTable(
   'push_devices',
   {
@@ -1535,6 +1676,8 @@ export type TerminalReader = typeof terminalReaders.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
 export type PostEventReminder = typeof postEventReminders.$inferSelect;
+export type SocialConnection = typeof socialConnections.$inferSelect;
+export type SocialPublication = typeof socialPublications.$inferSelect;
 export type PushDevice = typeof pushDevices.$inferSelect;
 export type EventNotificationJob = typeof eventNotificationJobs.$inferSelect;
 export type PushDelivery = typeof pushDeliveries.$inferSelect;

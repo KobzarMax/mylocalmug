@@ -46,10 +46,11 @@ export function BusinessContentEntry({
     return (
       <CancelEventScreen
         item={screen.item}
+        businessId={workspace.business.id}
         busy={content.busy}
         onBack={() => setScreen({ type: 'overview' })}
-        onCancel={async (reason) => {
-          await content.cancel(screen.item, reason);
+        onCancel={async (reason, social) => {
+          await content.cancel(screen.item, reason, social);
           setScreen({ type: 'overview' });
         }}
       />

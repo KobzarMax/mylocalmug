@@ -10,6 +10,7 @@ export type Permission =
   | 'business.profile.write'
   | 'menu.manage'
   | 'content.manage'
+  | 'social.connect'
   | 'rewards.manage'
   | 'team.read'
   | 'team.manage'
@@ -50,6 +51,7 @@ export type Business = {
   logoUrl: string | null;
   headerUrl: string | null;
   brandPalette: BusinessBrandPalette;
+  socialLinks: import('../social/types').SocialLinks;
   status: 'onboarding' | 'active' | 'suspended' | 'closed';
   isPublished: boolean;
 };

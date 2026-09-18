@@ -19,6 +19,7 @@ export function BusinessDashboard({
   onOpenRewards,
   onOpenTeam,
   onOpenLegal,
+  onOpenSocial,
   onReviewApplications,
   setupItems,
   setupLoading,
@@ -33,6 +34,7 @@ export function BusinessDashboard({
   onOpenRewards: () => void;
   onOpenTeam: () => void;
   onOpenLegal: () => void;
+  onOpenSocial: () => void;
   onReviewApplications?: () => void;
   setupItems: BusinessSetupItem[];
   setupLoading: boolean;
@@ -56,6 +58,12 @@ export function BusinessDashboard({
       label: 'News & events',
       permission: 'content.manage',
       action: onOpenContent,
+    },
+    {
+      icon: 'share-social-outline',
+      label: 'Social publishing',
+      permission: 'social.connect',
+      action: onOpenSocial,
     },
     { icon: 'gift-outline', label: 'Rewards', permission: 'rewards.manage', action: onOpenRewards },
     { icon: 'people-outline', label: 'Team', permission: 'team.read', action: onOpenTeam },

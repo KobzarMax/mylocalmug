@@ -2,6 +2,7 @@ import { isMenuCategoryIconKey } from '../../lib/menuCategoryIcons';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../types/database';
 import { normalizeBusinessPalette } from '../branding/theme';
+import { parseStoredSocialLinks } from '../social/validation';
 
 import {
   MarketplaceCursor,
@@ -44,7 +45,7 @@ export async function getPublicBusinessDetail(businessId: string): Promise<Publi
     ...mapSummary(row),
     phone: String(row.phone ?? ''),
     websiteUrl: String(row.website_url ?? ''),
-    socialLinks: isStringRecord(row.social_links) ? row.social_links : {},
+    socialLinks: parseStoredSocialLinks(row.social_links),
     timezone: String(row.timezone ?? 'Europe/London'),
     hours: Array.isArray(row.hours) ? (row.hours as PublicBusinessDetail['hours']) : [],
   };
@@ -106,13 +107,4 @@ function mapSummary(row: CatalogRow | DetailRow): PublicBusinessSummary {
       background: row.brand_background_color,
     }),
   };
-}
-
-function isStringRecord(value: unknown): value is Record<string, string> {
-  return (
-    Boolean(value) &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.values(value as Record<string, unknown>).every((entry) => typeof entry === 'string')
-  );
 }

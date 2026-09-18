@@ -9,6 +9,7 @@ import { resolveBusinessTheme } from '../../branding/theme';
 import { ResolvedBusinessTheme } from '../../branding/types';
 import { ContentCard } from '../../content/components/ContentCard';
 import { useBusinessFollow, usePublicContentFeed } from '../../content/hooks';
+import { PublicSocialLinks } from '../../social/components/PublicSocialLinks';
 import { usePublicBusiness } from '../hooks';
 import { styles } from '../styles';
 
@@ -141,6 +142,7 @@ export function ShopDetailScreen({
               />
             ) : null}
           </View>
+          <PublicSocialLinks links={business.socialLinks} theme={theme} />
           <BusinessHours hours={business.hours} theme={theme} />
           {menu.data ? (
             <PublicMenuSection menu={menu.data} theme={theme} />

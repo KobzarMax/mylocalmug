@@ -1,3 +1,4 @@
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
 import {
@@ -26,7 +27,10 @@ export async function chooseContentCover(): Promise<ContentCover | null> {
   const bytes = await response.arrayBuffer();
   validateProfileImageMetadata(mimeType, bytes.byteLength);
   validateProfileImageBytes(bytes, mimeType);
-  return { uri: asset.uri, mimeType };
+  const context = ImageManipulator.manipulate(asset.uri);
+  const rendered = await context.renderAsync();
+  const jpeg = await rendered.saveAsync({ compress: 0.88, format: SaveFormat.JPEG });
+  return { uri: jpeg.uri, mimeType: 'image/jpeg' };
 }
 
 export async function uploadContentCover(businessId: string, postId: string, cover: ContentCover) {

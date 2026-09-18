@@ -347,6 +347,8 @@ Ready to apply:
 - Supabase migration `017_business_brand_palettes.sql` safely exposes branding through public marketplace and content RPCs.
 - Business Profile now includes accessible swatches, normalized hex entry, reset, contrast validation, and live previews. Customer shop/content cards and detail pages resolve the business palette while preserving semantic system colours.
 - Transactional verification script `supabase/tests/017_business_brand_palettes_rls.sql` covers defaults, constraints, role isolation, and safe public exposure.
+- Social profiles and Meta publishing are code-complete through Drizzle `0011`/`0012`, Supabase `018`/`019`, four Edge Functions, profile/public link UI, reviewed content sharing, scheduled delivery, immutable JPEG snapshots, and role-separated connection permissions.
+- Production social publishing remains pending Meta Business verification, App Review, secrets, function deployment, Cron setup, and Facebook/Instagram sandbox acceptance. Native Facebook Event creation is intentionally excluded; events publish as reviewed promotional posts.
 
 Payment-provider deployment is intentionally postponed. The payment Edge Functions, provider credentials, Cron worker, sandbox acceptance, and physical-terminal acceptance are not release-ready.
 

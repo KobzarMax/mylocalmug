@@ -148,8 +148,10 @@ export function BusinessContentOverview(props: {
                       accessibilityRole="button"
                       disabled={props.busy}
                       onPress={() =>
-                        confirm('Archive content?', 'Customers will no longer see it.', () =>
-                          props.onArchive(item),
+                        confirm(
+                          'Archive content?',
+                          'Customers will no longer see it. Existing Facebook and Instagram posts will remain online.',
+                          () => props.onArchive(item),
                         )
                       }
                       style={[styles.secondaryButton, styles.warningButton]}

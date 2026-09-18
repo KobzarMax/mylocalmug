@@ -3600,6 +3600,48 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      get_business_social_connections: {
+        Args: { target_business_id: string };
+        Returns: {
+          id: string;
+          provider: Database['public']['Enums']['social_platform'];
+          account_name: string;
+          username: string | null;
+          profile_url: string;
+          status: Database['public']['Enums']['social_connection_status'];
+          token_expires_at: string | null;
+          last_verified_at: string | null;
+        }[];
+      };
+      queue_social_publications: {
+        Args: {
+          target_business_id: string;
+          target_post_id: string;
+          publication_type_input: Database['public']['Enums']['social_publication_type'];
+          publication_due_at: string;
+          publication_content_url: string;
+          publication_captions: Json;
+          publication_media_path?: string;
+        };
+        Returns: string[];
+      };
+      get_post_social_publications: {
+        Args: { target_post_id: string };
+        Returns: {
+          id: string;
+          provider: Database['public']['Enums']['social_platform'];
+          publication_type: Database['public']['Enums']['social_publication_type'];
+          caption: string;
+          due_at: string;
+          status: Database['public']['Enums']['social_publication_status'];
+          provider_url: string | null;
+          last_error: string | null;
+        }[];
+      };
+      retry_social_publication: {
+        Args: { target_publication_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       business_application_status:
@@ -3651,6 +3693,11 @@ export type Database = {
         | 'partially_refunded'
         | 'refunded';
       post_kind: 'news' | 'event';
+      social_platform: 'facebook' | 'instagram';
+      social_connection_status: 'connecting' | 'ready' | 'expired' | 'revoked' | 'disabled';
+      social_publication_type: 'initial' | 'update' | 'cancellation';
+      social_publication_status:
+        'queued' | 'publishing' | 'published' | 'blocked' | 'failed' | 'needs_review' | 'cancelled';
       push_delivery_status: 'pending' | 'ticketed' | 'delivered' | 'failed';
       refund_status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
       review_target: 'business' | 'menu_item';

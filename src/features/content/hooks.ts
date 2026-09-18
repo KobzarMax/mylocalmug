@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
+import { createSocialMediaSnapshot, queueSocialPublications } from '../social/api';
+import { SocialFollowUpInput } from '../social/types';
+
 import { archiveContent, cancelEvent, deleteDraft, getBusinessContent, registerPushDevice } from './api';
 import { addEventToCalendar, registerForEventNotifications } from './device';
 import { messageFrom } from './errors';
@@ -35,8 +38,25 @@ export function useBusinessContent(businessId: string, businessName: string) {
       const path = await deleteDraft(item.id);
       await removeContentCover(businessId, item.id, path).catch(() => undefined);
     });
-  const cancel = (item: ContentItem, reason: string) =>
-    mutate(() => cancelEvent(item.id, cancellationReasonSchema.parse(reason)));
+  const cancel = (item: ContentItem, reason: string, social?: SocialFollowUpInput) =>
+    mutate(async () => {
+      await cancelEvent(item.id, cancellationReasonSchema.parse(reason));
+      if (!social?.providers.length) return;
+      let mediaPath: string | null = null;
+      if (social.providers.includes('instagram')) {
+        if (!item.coverPath) throw new Error('Instagram requires a JPEG cover image.');
+        mediaPath = await createSocialMediaSnapshot(businessId, item.id, item.coverPath);
+      }
+      await queueSocialPublications({
+        businessId,
+        postId: item.id,
+        publicationType: 'cancellation',
+        dueAt: new Date().toISOString(),
+        contentUrl: social.contentUrl,
+        captions: social.captions,
+        mediaPath,
+      });
+    });
 
   return {
     items: query.data ?? [],

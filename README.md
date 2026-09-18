@@ -62,8 +62,12 @@ To connect Supabase:
 21. Run `supabase/tests/014_category_menu_icons.sql`; it is transactional and rolls back its fixtures.
 22. Run `pnpm run db:migrate` to apply `drizzle/0010_nosy_maelstrom.sql`, then apply `supabase/migrations/017_business_brand_palettes.sql`.
 23. Run `supabase/tests/017_business_brand_palettes_rls.sql`; it verifies palette defaults, contrast constraints, profile permissions, and safe public responses transactionally.
-24. Put the project URL and publishable/anon key in `.env`.
-25. Restart Expo so the public environment variables are bundled.
+24. Run `pnpm run db:migrate` to apply Drizzle `0011_daffy_black_bird.sql` and `0012_marvelous_blacklash.sql`, then apply Supabase `018_social_profiles_meta_publishing.sql`.
+25. Deploy `social-api`, `social-callback`, `process-social-publications`, and `meta-webhook`. Deploy the callback, worker, and webhook with JWT verification disabled because they validate OAuth state, Cron credentials, or Meta signatures themselves.
+26. Add `META_APP_ID`, `META_APP_SECRET`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `SOCIAL_CALLBACK_URL`, `SOCIAL_APP_RETURN_URL`, `SOCIAL_TOKEN_ENCRYPTION_KEY`, `META_WEBHOOK_VERIFY_TOKEN`, and `SOCIAL_CRON_SECRET` as Supabase Edge Function secrets.
+27. Run `supabase/tests/018_social_profiles_meta_publishing_rls.sql`, add Vault secrets `social_publication_worker_url` and `social_cron_secret`, then apply `019_social_publication_cron.sql`.
+28. Put the project URL and publishable/anon key in `.env`.
+29. Restart Expo so the public environment variables are bundled.
 
 ### Menu management deployment
 
@@ -76,6 +80,8 @@ For dedicated category management, apply Drizzle `0008_normalized_menu_categorie
 For category-owned menu icons, apply Drizzle `0009_ambitious_warlock.sql`, then Supabase `014_category_menu_icons.sql`, `015_restore_default_category_trigger.sql`, and `016_rebuild_default_category_icon_trigger.sql`, and run `supabase/tests/014_category_menu_icons.sql`. Migration `0009` adds and backfills the constrained icon key. Migration `014` updates trusted category saves, starter-category icons, and the event-aware public menu response. Migration `015` restores an absent trigger and repairs only completely empty category lists. Migration `016` atomically replaces any remaining migration `011` name-only trigger function with the icon-aware definition.
 
 For business branding, apply Drizzle `0010_nosy_maelstrom.sql` before Supabase `017_business_brand_palettes.sql`, then run `supabase/tests/017_business_brand_palettes_rls.sql`. The Drizzle migration stores and validates the three-colour palette; Supabase `017` exposes only those safe colours through public catalog, detail, and content RPCs.
+
+For social publishing, configure `EXPO_PUBLIC_APP_URL` as the public HTTPS web origin used in shared links. Generate `SOCIAL_TOKEN_ENCRYPTION_KEY` as 32 random bytes encoded in base64 and keep it server-only. Meta OAuth redirects to `social-callback`; `SOCIAL_APP_RETURN_URL` should be `localmug://business/social` for native acceptance or the equivalent HTTPS route for web. Meta App Review and business verification remain required before external businesses can connect production accounts.
 
 1. Apply `supabase/migrations/004_menu_management.sql` in the Supabase SQL Editor.
 2. Run `supabase/tests/004_menu_management_rls.sql`. Success returns without an assertion error and the transaction rolls back all test data.

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { BrandPaletteEditor } from '../../branding/components/BrandPaletteEditor';
+import { SocialLinksEditor } from '../../social/components/SocialLinksEditor';
 import { useBusinessProfile } from '../hooks';
 import { hasPermission } from '../permissions';
 import { colors, styles } from '../styles';
@@ -162,6 +163,12 @@ export function BusinessProfileEditor({
             onChange={profile.updateBrandPalette}
             onReset={profile.resetBrandPalette}
             value={profile.brandPalette}
+          />
+          <SocialLinksEditor
+            editable={editable}
+            error={profile.socialLinksError}
+            onChange={profile.updateSocialLink}
+            value={profile.socialLinks}
           />
           <Text style={styles.sectionTitle}>Opening hours</Text>
           {profile.hoursLoading ? (

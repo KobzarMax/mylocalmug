@@ -70,6 +70,7 @@ function BusinessWorkspaceHome() {
       onOpenRewards={() => router.push('/business/rewards')}
       onOpenTeam={() => router.push('/business/team')}
       onOpenLegal={() => router.push('/business/legal')}
+      onOpenSocial={() => router.push('./social')}
       onReviewApplications={access.isPlatformAdmin ? () => router.push('/business/applications') : undefined}
     />
   );

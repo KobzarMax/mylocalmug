@@ -1,6 +1,11 @@
 import { useState } from 'react';
 
-import { publishContent, saveContentDraft, deleteDraft } from './api';
+import { createSocialMediaSnapshot, queueSocialPublications } from '../social/api';
+import { useSocialConnections } from '../social/hooks';
+import { SocialPlatform } from '../social/types';
+import { buildSocialCaption, isJpegPath, socialCaptionSchema } from '../social/validation';
+
+import { deleteDraft, publishContent, saveContentDraft } from './api';
 import { chooseContentCover, removeContentCover, uploadContentCover } from './media';
 import { ContentCover, ContentEditorInput, ContentItem, emptyDocument } from './types';
 import { normalizeContentInput } from './validation';
@@ -22,6 +27,12 @@ export function useContentEditor(options: {
   const [cover, setCover] = useState<ContentCover | null>(null);
   const [coverRemoved, setCoverRemoved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const social = useSocialConnections(businessId);
+  const [socialProviders, setSocialProviders] = useState<SocialPlatform[]>([]);
+  const [socialCaptions, setSocialCaptions] = useState<Partial<Record<SocialPlatform, string>>>({});
+  const publicAppUrl = (process.env.EXPO_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const previewUrl = `${publicAppUrl}/content/${item?.id ?? 'published-story'}`;
+  const defaultSocialCaption = publicAppUrl ? buildSocialCaption({ ...form, contentUrl: previewUrl }) : '';
 
   const update = <Key extends keyof ContentEditorInput>(key: Key, value: ContentEditorInput[Key]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -89,9 +100,38 @@ export function useContentEditor(options: {
       if (cover) uploadedPath = await uploadContentCover(businessId, postId, cover);
       const nextPath = uploadedPath ?? (coverRemoved ? null : existingPath);
       await saveContentDraft(businessId, postId, input, nextPath);
+      let publicationTime: Date | null = null;
       if (mode !== 'draft') {
-        const publicationTime = mode === 'publish' ? new Date() : (scheduledFor as Date);
+        publicationTime = mode === 'publish' ? new Date() : (scheduledFor as Date);
         await publishContent(postId, publicationTime.toISOString());
+      }
+      if (socialProviders.length && (mode !== 'draft' || item?.publishedAt)) {
+        const existingPublished = Boolean(item?.publishedAt && new Date(item.publishedAt) <= new Date());
+        const dueAt = publicationTime ?? (existingPublished ? new Date() : new Date(item?.publishedAt ?? 0));
+        if (!Number.isFinite(dueAt.getTime())) throw new Error('Choose a Local Mug publication time first.');
+        let socialMediaPath: string | null = null;
+        if (socialProviders.includes('instagram')) {
+          if (!nextPath || !isJpegPath(nextPath)) throw new Error('Instagram requires a JPEG cover image.');
+          socialMediaPath = await createSocialMediaSnapshot(businessId, postId, nextPath);
+        }
+        const contentUrl = `${publicAppUrl}/content/${postId}`;
+        const captions = Object.fromEntries(
+          socialProviders.map((provider) => [
+            provider,
+            socialCaptionSchema.parse(
+              socialCaptions[provider] ?? buildSocialCaption({ ...input, contentUrl }),
+            ),
+          ]),
+        );
+        await queueSocialPublications({
+          businessId,
+          postId,
+          publicationType: existingPublished ? 'update' : 'initial',
+          dueAt: dueAt.toISOString(),
+          contentUrl,
+          captions,
+          mediaPath: socialMediaPath,
+        });
       }
       if (existingPath && existingPath !== nextPath) {
         await removeContentCover(businessId, postId, existingPath).catch(() => undefined);
@@ -117,6 +157,20 @@ export function useContentEditor(options: {
     submit,
     coverUrl: cover?.uri ?? (coverRemoved ? null : (item?.coverUrl ?? null)),
     kindLocked: Boolean(item?.publishedAt),
+    socialConnections: social.connections,
+    socialProviders,
+    socialCaptions,
+    defaultSocialCaption,
+    publicSocialUrlReady: /^https:\/\//.test(publicAppUrl),
+    hasJpegCover: cover
+      ? cover.mimeType === 'image/jpeg'
+      : isJpegPath(coverRemoved ? null : (item?.coverPath ?? null)),
+    toggleSocialProvider: (provider: SocialPlatform) =>
+      setSocialProviders((current) =>
+        current.includes(provider) ? current.filter((value) => value !== provider) : [...current, provider],
+      ),
+    updateSocialCaption: (provider: SocialPlatform, value: string) =>
+      setSocialCaptions((current) => ({ ...current, [provider]: value })),
   };
 }
 

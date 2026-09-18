@@ -16,6 +16,8 @@ import {
 import { supabase } from '../../lib/supabase';
 import { businessBrandPaletteSchema, DEFAULT_BUSINESS_PALETTE } from '../branding/theme';
 import { BusinessBrandPalette } from '../branding/types';
+import { SocialLinkPlatform, SocialLinks } from '../social/types';
+import { normalizeSocialLinks } from '../social/validation';
 
 import {
   getBusinessApplication,
@@ -188,6 +190,7 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
   const [logo, setLogo] = useState<SelectedMedia | null>(null);
   const [header, setHeader] = useState<SelectedMedia | null>(null);
   const [brandPalette, setBrandPalette] = useState<BusinessBrandPalette>(workspace.business.brandPalette);
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>(workspace.business.socialLinks);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -235,6 +238,7 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
     const parsedPalette = businessBrandPaletteSchema.safeParse(brandPalette);
     if (!parsedPalette.success)
       throw new Error(parsedPalette.error.issues[0]?.message ?? 'Choose accessible brand colours.');
+    const parsedSocialLinks = normalizeSocialLinks(socialLinks);
     setBusy(true);
     const uploadedPaths: string[] = [];
     try {
@@ -257,6 +261,7 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
         hours,
         { logoUrl, headerUrl },
         parsedPalette.data,
+        parsedSocialLinks,
       );
       onSaved();
     } catch (error) {
@@ -278,6 +283,17 @@ export function useBusinessProfile(workspace: Workspace, onSaved: () => void) {
     logo,
     header,
     brandPalette,
+    socialLinks,
+    updateSocialLink: (platform: SocialLinkPlatform, value: string) =>
+      setSocialLinks((current) => ({ ...current, [platform]: value })),
+    socialLinksError: (() => {
+      try {
+        normalizeSocialLinks(socialLinks);
+        return null;
+      } catch (error) {
+        return error instanceof Error ? error.message : 'Check the social profile URLs.';
+      }
+    })(),
     updateBrandPalette: (key: keyof BusinessBrandPalette, value: string) =>
       setBrandPalette((current) => ({ ...current, [key]: value })),
     resetBrandPalette: () => setBrandPalette(DEFAULT_BUSINESS_PALETTE),
